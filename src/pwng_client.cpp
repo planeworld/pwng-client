@@ -1,4 +1,7 @@
+#include <chrono>
+#include <ctime>
 #include <iostream>
+#include <string>
 #include <thread>
 
 #include <argagg/argagg.hpp>
@@ -10,7 +13,12 @@
 
 typedef websocketpp::client<websocketpp::config::asio_client> ClientType;
 
-void on_message(websocketpp::connection_hdl, ClientType::message_ptr msg)
+#include <nlohmann/json.hpp>
+
+// for convenience
+using json = nlohmann::json;
+
+void onMessage(websocketpp::connection_hdl, ClientType::message_ptr msg)
 {
     std::cout << msg->get_payload() << std::endl;
 }
@@ -21,7 +29,20 @@ void sendMessage(ClientType::connection_ptr _Connection)
     while (true)
     {
         std::cin >> Msg;
-        _Connection->send(Msg);
+
+        using sc = std::chrono::system_clock ;
+        std::time_t t = sc::to_time_t(sc::now());
+        char buf[20];
+        strftime(buf, 20, "%d.%m.%Y %H:%M:%S", localtime(&t));
+        std::string s(buf);
+
+        json j =
+        {
+            {"Message", Msg},
+            {"Time", s}
+        };
+
+        _Connection->send(j.dump(4));
     }
 }
 
@@ -30,31 +51,6 @@ int main(int argc, char *argv[])
 
     ClientType Client;
     entt::registry Reg_;
-
-    // argagg::parser ArgParser
-    //     {{
-    //         {"help", {"-h", "--help"},
-    //          "Shows this help message", 0},
-    //         {"port", {"-p", "--port"},
-    //          "Port to listen to", 1}
-    //     }};
-
-    // argagg::parser_results Args;
-    // try
-    // {
-    //     Args = ArgParser.parse(argc, argv);
-    // }
-    // catch (const std::exception& e)
-    // {
-    //     std::cerr << e.what() << '\n';
-    //     return EXIT_FAILURE;
-    // }
-    // if (Args["help"])
-    // {
-    //     std::cerr << ArgParser;
-    //     return EXIT_SUCCESS;
-    // }
-    // int Port = Args["port"];
 
     std::string uri = "ws://localhost:9002";
 
@@ -69,7 +65,7 @@ int main(int argc, char *argv[])
         Client.init_asio();
 
         // Register our message handler
-        Client.set_message_handler(&on_message);
+        Client.set_message_handler(&onMessage);
 
         websocketpp::lib::error_code ec;
         ClientType::connection_ptr con = Client.get_connection(uri, ec);
@@ -80,12 +76,7 @@ int main(int argc, char *argv[])
 
         std::thread t(&sendMessage, con);
 
-        // Note that connect here only requests a connection. No network messages are
-        // exchanged until the event loop starts running in the next line.
         Client.connect(con);
-        // Start the ASIO io_service run loop
-        // this will cause a single connection to be made to the server. Client.run()
-        // will exit when this connection is closed.
         Client.run();
     }
     catch (websocketpp::exception const & e)
