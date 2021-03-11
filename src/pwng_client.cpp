@@ -1,3 +1,4 @@
+#include <atomic>
 #include <chrono>
 #include <ctime>
 #include <iostream>
@@ -5,84 +6,59 @@
 #include <thread>
 
 #include <argagg/argagg.hpp>
+#include <concurrentqueue/concurrentqueue.h>
 #include <entt/entity/registry.hpp>
-
-#define ASIO_STANDALONE
-#include <websocketpp/config/asio_no_tls_client.hpp>
-#include <websocketpp/client.hpp>
-
-typedef websocketpp::client<websocketpp::config::asio_client> ClientType;
 
 #include <nlohmann/json.hpp>
 
-// for convenience
+#include "error_handler.hpp"
+#include "message_handler.hpp"
+#include "network_manager.hpp"
+
 using json = nlohmann::json;
-
-void onMessage(websocketpp::connection_hdl, ClientType::message_ptr msg)
-{
-    std::cout << msg->get_payload() << std::endl;
-}
-
-void sendMessage(ClientType::connection_ptr _Connection)
-{
-    std::string Msg;
-    while (true)
-    {
-        std::cin >> Msg;
-
-        using sc = std::chrono::system_clock ;
-        std::time_t t = sc::to_time_t(sc::now());
-        char buf[20];
-        strftime(buf, 20, "%d.%m.%Y %H:%M:%S", localtime(&t));
-        std::string s(buf);
-
-        json j =
-        {
-            {"Message", Msg},
-            {"Time", s}
-        };
-
-        _Connection->send(j.dump(4));
-    }
-}
 
 int main(int argc, char *argv[])
 {
 
-    ClientType Client;
-    entt::registry Reg_;
+    entt::registry Reg;
 
-    std::string uri = "ws://localhost:9002";
+    Reg.set<ErrorHandler>();
+    Reg.set<MessageHandler>();
+    Reg.set<NetworkManager>(Reg);
 
-	try
+    auto& Errors = Reg.ctx<ErrorHandler>();
+    auto& Messages = Reg.ctx<MessageHandler>();
+    auto& Network = Reg.ctx<NetworkManager>();
+
+    std::string Uri = "ws://localhost:9002/?id=1";
+
+    moodycamel::ConcurrentQueue<std::string> InputQueue;
+    moodycamel::ConcurrentQueue<std::string> OutputQueue;
+
+    Network.init(&InputQueue, &OutputQueue, Uri);
+
+    while (Network.isRunning())
     {
-        // Set logging to be pretty verbose (everything except message payloads)
-        Client.set_access_channels(websocketpp::log::alevel::all);
-        Client.clear_access_channels(websocketpp::log::alevel::frame_payload);
-        Client.set_error_channels(websocketpp::log::elevel::all);
+        std::string Message;
+        bool NewMessageFound = InputQueue.try_dequeue(Message);
+        if (NewMessageFound)
+        {
+            DBLK(Messages.report("Incoming Message: \n" + Message, MessageHandler::DEBUG_L1);)
 
-        // Initialize ASIO
-        Client.init_asio();
+            // json j = json::parse(Message);
 
-        // Register our message handler
-        Client.set_message_handler(&onMessage);
-
-        websocketpp::lib::error_code ec;
-        ClientType::connection_ptr con = Client.get_connection(uri, ec);
-        if (ec) {
-            std::cout << "could not create connection because: " << ec.message() << std::endl;
-            return 0;
+            // if (j["Message"] == "stop")
+            // {
+            //     Network.stop();
+            //     // Simulation.stop();
+            // }
         }
-
-        std::thread t(&sendMessage, con);
-
-        Client.connect(con);
-        Client.run();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    catch (websocketpp::exception const & e)
-    {
-        std::cout << e.what() << std::endl;
-    }
+
+    Network.stop();
+
+    Messages.report("Exit program");
 
     return EXIT_SUCCESS;
 }
