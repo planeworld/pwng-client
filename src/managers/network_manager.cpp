@@ -1,6 +1,5 @@
 #include "network_manager.hpp"
 
-#include "error_handler.hpp"
 #include "message_handler.hpp"
 
 bool NetworkManager::init(moodycamel::ConcurrentQueue<std::string>* const _InputQueue,
@@ -10,11 +9,14 @@ bool NetworkManager::init(moodycamel::ConcurrentQueue<std::string>* const _Input
     InputQueue_ = _InputQueue;
     OutputQueue_ = _OutputQueue;
 
-    auto& Errors = Reg_.ctx<ErrorHandler>();
+    auto& Messages = Reg_.ctx<MessageHandler>();
 
     Client_.set_access_channels(websocketpp::log::alevel::all);
+    Client_.clear_access_channels(websocketpp::log::alevel::frame_header);
+    Client_.clear_access_channels(websocketpp::log::alevel::frame_payload);
     Client_.set_error_channels(websocketpp::log::elevel::all);
-
+    Client_.get_elog().set_ostream(&ErrorStream_);
+    Client_.get_alog().set_ostream(&MessageStream_);
     Client_.set_close_handler(std::bind(&NetworkManager::onClose, this,
                               std::placeholders::_1));
     Client_.set_message_handler(std::bind(&NetworkManager::onMessage, this,
@@ -28,14 +30,13 @@ bool NetworkManager::init(moodycamel::ConcurrentQueue<std::string>* const _Input
     ClientType::connection_ptr Con = Client_.get_connection(_Uri, ErrorCode);
     if (ErrorCode)
     {
-        Errors.report("Couldn't start client: " + ErrorCode.message());
-        std::cerr << ErrorCode.message() << std::endl;
-        return false;
+        Messages.report("net", "Couldn't start client: " + ErrorCode.message(), MessageHandler::ERROR);
+        // return false;
     }
     Client_.connect(Con);
 
     ThreadClient_ = std::thread(std::bind(&ClientType::run, &Client_));
-    // ThreadSender_ = std::thread(&NetworkManager::run, this);
+    ThreadSender_ = std::thread(&NetworkManager::run, this);
 
     return true;
 }
@@ -43,15 +44,15 @@ bool NetworkManager::init(moodycamel::ConcurrentQueue<std::string>* const _Input
 void NetworkManager::onClose(websocketpp::connection_hdl _Connection)
 {
     auto& Messages = Reg_.ctx<MessageHandler>();
-    Messages.report("Connection to client closed");
+    Messages.report("net", "Connection to client closed", MessageHandler::INFO);
     IsRunning_ = false;
 }
 
 void NetworkManager::onMessage(websocketpp::connection_hdl _Connection, ClientType::message_ptr _Msg)
 {
     auto& Messages = Reg_.ctx<MessageHandler>();
-    DBLK(Messages.report("Incoming message enqueued", MessageHandler::DEBUG_L2);)
-    DBLK(Messages.report("Content: " + _Msg->get_payload(), MessageHandler::DEBUG_L3);)
+    DBLK(Messages.report("net", "Incoming message enqueued", MessageHandler::DEBUG_L2);)
+    DBLK(Messages.report("net", "Content: " + _Msg->get_payload(), MessageHandler::DEBUG_L3);)
     InputQueue_->enqueue(_Msg->get_payload());
 }
 
@@ -63,10 +64,10 @@ bool NetworkManager::onValidate(websocketpp::connection_hdl _Connection)
         Connection = Client_.get_con_from_hdl(_Connection);
     websocketpp::uri_ptr Uri = Connection->get_uri();
 
-    DBLK(Messages.report("Query string: " + Uri->get_query(), MessageHandler::DEBUG_L1);)
+    DBLK(Messages.report("net", "Query string: " + Uri->get_query(), MessageHandler::DEBUG_L1);)
 
     std::string ID = "1";
-    Messages.report("Connection validated");
+    Messages.report("net", "Connection validated", MessageHandler::INFO);
     Connection_ = _Connection;
 
     return true;
@@ -74,10 +75,35 @@ bool NetworkManager::onValidate(websocketpp::connection_hdl _Connection)
 
 void NetworkManager::run()
 {
-    // auto& Messages = Reg_.ctx<MessageHandler>();
+    auto& Messages = Reg_.ctx<MessageHandler>();
 
-    // while (IsRunning_)
-    // {
+    while (IsRunning_)
+    {
+        // Check, if there are any errors or messages from
+        // websocketpp.
+        // Since output is transferred to a (string-)stream,
+        // it's content is frequently checked
+        if (!ErrorStream_.str().empty())
+        {
+            // Extract line by line in case of multiple messages
+            std::string Line;
+            while (std::getline(ErrorStream_, Line, '\n'))
+            {
+                Messages.report("net", "WebSocket++: "+Line);
+            }
+            ErrorStream_.str({});
+        }
+        DBLK(
+            if (!MessageStream_.str().empty())
+            {
+                std::string Line;
+                while(std::getline(MessageStream_, Line, '\n'))
+                {
+                    Messages.report("net", "WebSocket++: "+Line, MessageHandler::DEBUG_L1);
+                }
+                MessageStream_.str({});
+            }
+        )
     //     std::string Message;
     //     while (OutputQueue_->try_dequeue(Message))
     //     {
@@ -101,23 +127,22 @@ void NetworkManager::run()
 
     //         // std::cout << Message << std::endl;
     //     }
-    //     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    // }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
     // DBLK(Messages.report("Sender thread stopped successfully", MessageHandler::DEBUG_L1);)
 }
 
 bool NetworkManager::stop()
 {
-    auto& Errors = Reg_.ctx<ErrorHandler>();
     auto& Messages = Reg_.ctx<MessageHandler>();
 
-    Messages.report("Stopping client");
+    Messages.report("net", "Stopping client", MessageHandler::INFO);
 
     // websocketpp::lib::error_code ErrorCode;
     // Client_.stop_listening(ErrorCode);
     // if (ErrorCode)
     // {
-    //     Errors.report("Stopping client failed: " + ErrorCode.message());
+    //     Messages.report("Stopping client failed: " + ErrorCode.message());
     //     return false;
     // }
 
@@ -127,7 +152,7 @@ bool NetworkManager::stop()
     //                   "Client shutting down, closing connection.", ErrorCode);
     //     if (ErrorCode)
     //     {
-    //         Errors.report("Closing connection failed: " + ErrorCode.message());
+    //         Messages.report("Closing connection failed: " + ErrorCode.message());
     //     }
     // }
 
@@ -135,7 +160,7 @@ bool NetworkManager::stop()
 
     ThreadClient_.join();
 
-    Messages.report("Client stopped");
+    Messages.report("net", "Client stopped", MessageHandler::INFO);
 
     return true;
 }

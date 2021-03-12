@@ -11,7 +11,6 @@
 
 #include <nlohmann/json.hpp>
 
-#include "error_handler.hpp"
 #include "message_handler.hpp"
 #include "network_manager.hpp"
 
@@ -22,13 +21,16 @@ int main(int argc, char *argv[])
 
     entt::registry Reg;
 
-    Reg.set<ErrorHandler>();
     Reg.set<MessageHandler>();
     Reg.set<NetworkManager>(Reg);
 
-    auto& Errors = Reg.ctx<ErrorHandler>();
     auto& Messages = Reg.ctx<MessageHandler>();
     auto& Network = Reg.ctx<NetworkManager>();
+
+    Messages.registerSource("net", "net");
+    Messages.registerSource("prg", "prg");
+    Messages.setColored(true);
+    Messages.setLevel(MessageHandler::DEBUG_L1);
 
     std::string Uri = "ws://localhost:9002/?id=1";
 
@@ -43,7 +45,7 @@ int main(int argc, char *argv[])
         bool NewMessageFound = InputQueue.try_dequeue(Message);
         if (NewMessageFound)
         {
-            DBLK(Messages.report("Incoming Message: \n" + Message, MessageHandler::DEBUG_L1);)
+            DBLK(Messages.report("prg", "Incoming Message: \n" + Message, MessageHandler::DEBUG_L3);)
 
             // json j = json::parse(Message);
 
@@ -58,7 +60,7 @@ int main(int argc, char *argv[])
 
     Network.stop();
 
-    Messages.report("Exit program");
+    Messages.report("prg", "Exit program");
 
     return EXIT_SUCCESS;
 }

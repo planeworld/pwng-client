@@ -38,6 +38,9 @@ class NetworkManager
 
         entt::registry& Reg_;
 
+        std::stringstream ErrorStream_;
+        std::stringstream MessageStream_;
+
         moodycamel::ConcurrentQueue<std::string>* InputQueue_;
         moodycamel::ConcurrentQueue<std::string>* OutputQueue_;
 
@@ -45,6 +48,7 @@ class NetworkManager
         websocketpp::connection_hdl Connection_;
 
         std::thread ThreadClient_;
+        std::thread ThreadSender_;
 
         bool IsRunning_{true};
 };
