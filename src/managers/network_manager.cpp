@@ -31,7 +31,7 @@ bool NetworkManager::init(moodycamel::ConcurrentQueue<std::string>* const _Input
     if (ErrorCode)
     {
         Messages.report("net", "Couldn't start client: " + ErrorCode.message(), MessageHandler::ERROR);
-        // return false;
+        return false;
     }
     Client_.connect(Con);
 
@@ -104,6 +104,7 @@ void NetworkManager::run()
                 MessageStream_.str({});
             }
         )
+
     //     std::string Message;
     //     while (OutputQueue_->try_dequeue(Message))
     //     {

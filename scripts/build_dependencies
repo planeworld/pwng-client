@@ -32,6 +32,18 @@ git clone --branch asio-1-18-1 --depth 1 https://github.com/chriskohlhoff/asio.g
 echo "--- CLONING WEBSOCKET++ ---"
 git clone --branch 0.8.2 --depth 1 https://github.com/zaphoyd/websocketpp.git > /dev/null
 
+echo "--- CLONING CORRADE ---"
+git clone --branch v2020.06 --depth 1 https://github.com/mosra/corrade.git > /dev/null
+
+echo "--- CLONING MAGNUM ---"
+git clone --branch v2020.06 --depth 1 https://github.com/mosra/magnum.git > /dev/null
+
+echo "--- CLONING MAGNUM-INTEGRATION ---"
+git clone --branch v2020.06 --depth 1 https://github.com/mosra/magnum-integration.git > /dev/null
+
+echo "--- CLONING IMGUI ---"
+git clone --branch v1.79 --depth 1 https://github.com/ocornut/imgui.git > /dev/null
+
 # Install argagg
 
 echo "--- INSTALLING ARGAGG ---"
@@ -121,4 +133,48 @@ mkdir -p build
 cd build
 cmake .. -DCMAKE_INSTALL_PREFIX=../../../install -DCMAKE_BUILD_TYPE=RELEASE > /dev/null
 make -j8 install > /dev/null
+cd ../..
+
+# Install corrade
+
+echo "--- INSTALLING CORRADE ---"
+cd corrade
+mkdir -p build
+cd build
+cmake .. -DCMAKE_PREFIX_PATH=../../../install -DCMAKE_INSTALL_PREFIX=../../../install -DCMAKE_BUILD_TYPE=RELEASE -DBUILD_DEPRECATED=OFF > /dev/null
+make -j8 install > /dev/null
+cd ../..
+
+# Install magnum
+
+echo "--- INSTALLING MAGNUM ---"
+cd magnum
+mkdir -p build
+cd build
+cmake .. -DCMAKE_PREFIX_PATH=../../../install -DCMAKE_INSTALL_PREFIX=../../../install -DCMAKE_BUILD_TYPE=RELEASE -DBUILD_DEPRECATED=OFF -DWITH_DEBUGTOOLS=ON -DWITH_SDL2APPLICATION=ON > /dev/null
+make -j8 install > /dev/null
+cd ../..
+
+# Install imgui
+
+echo "--- INSTALLING IMGUI ---"
+cd imgui
+cp *.h ../../install/include/
+cp *.cpp ../../install/include/
+cd ..
+
+# Install magnum-integration
+
+echo "--- INSTALLING MAGNUM-INTEGRATION ---"
+cd magnum-integration
+mkdir -p build
+cd build
+cmake .. -DCMAKE_PREFIX_PATH=../../../install -DCMAKE_INSTALL_PREFIX=../../../install -DCMAKE_BUILD_TYPE=RELEASE -DWITH_IMGUI=ON -Dimgui_DIR=../../install > /dev/null
+make -j8 install > /dev/null
+cd ../..
+
+# Add modules
+echo "--- ADDING MODULES ---"
+mkdir -p modules
+cp magnum-integration/modules/* modules/
 cd ../..
