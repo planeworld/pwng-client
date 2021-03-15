@@ -19,21 +19,51 @@
 
 using json = nlohmann::json;
 
-PwngClient::PwngClient(const Arguments& arguments): Magnum::Platform::Application{arguments, Magnum::NoCreate}
+PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate}
 {
+    Reg_.set<MessageHandler>();
+    Reg_.set<NetworkManager>(Reg_);
+
     this->setupWindow();
     this->setupNetwork();
+    setSwapInterval(0);
+    setMinimalLoopPeriod(1.0f/60.0f * 1000.0f);
+}
+
+void PwngClient::drawEvent()
+{
+    GL::defaultFramebuffer.clearColor(Color4(0.0f, 0.0f, 0.0f, 1.0f));
+    this->updateUI();
+    swapBuffers();
+    redraw();
+}
+
+void PwngClient::mouseMoveEvent(MouseMoveEvent& Event)
+{
+    ImGUI_.handleMouseMoveEvent(Event);
+}
+
+void PwngClient::mousePressEvent(MouseEvent& Event)
+{
+    ImGUI_.handleMousePressEvent(Event);
+}
+
+void PwngClient::mouseReleaseEvent(MouseEvent& Event)
+{
+    ImGUI_.handleMouseReleaseEvent(Event);
+}
+
+void PwngClient::viewportEvent(ViewportEvent& Event)
+{
+    GL::defaultFramebuffer.setViewport({{}, Event.framebufferSize()});
+
+    ImGUI_.relayout(Vector2(Event.windowSize()), Event.windowSize(), Event.framebufferSize());
 }
 
 void PwngClient::setupNetwork()
 {
-    entt::registry Reg;
-
-    Reg.set<MessageHandler>();
-    Reg.set<NetworkManager>(Reg);
-
-    auto& Messages = Reg.ctx<MessageHandler>();
-    auto& Network = Reg.ctx<NetworkManager>();
+    auto& Messages = Reg_.ctx<MessageHandler>();
+    auto& Network = Reg_.ctx<NetworkManager>();
 
     Messages.registerSource("net", "net");
     Messages.registerSource("prg", "prg");
@@ -42,33 +72,7 @@ void PwngClient::setupNetwork()
 
     std::string Uri = "ws://localhost:9002/?id=1";
 
-    moodycamel::ConcurrentQueue<std::string> InputQueue;
-    moodycamel::ConcurrentQueue<std::string> OutputQueue;
-
-    Network.init(&InputQueue, &OutputQueue, Uri);
-
-    while (Network.isRunning())
-    {
-        std::string Message;
-        bool NewMessageFound = InputQueue.try_dequeue(Message);
-        if (NewMessageFound)
-        {
-            DBLK(Messages.report("prg", "Incoming Message: \n" + Message, MessageHandler::DEBUG_L3);)
-
-            // json j = json::parse(Message);
-
-            // if (j["Message"] == "stop")
-            // {
-            //     Network.stop();
-            //     // Simulation.stop();
-            // }
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-
-    Network.stop();
-
-    Messages.report("prg", "Exit program");
+    Network.init(&InputQueue_, &OutputQueue_, Uri);
 }
 
 
@@ -76,15 +80,14 @@ void PwngClient::setupWindow()
 {
     /* Try 8x MSAA, fall back to zero samples if not possible. Enable only 2x
        MSAA if we have enough DPI. */
-    const Magnum::Vector2 dpiScaling = this->dpiScaling({});
+    const Vector2 dpiScaling = this->dpiScaling({});
 
     Configuration conf;
-    conf.setSize({1000, 1000});
+    conf.setSize({500, 500});
 
     conf.setTitle("PWNG Desktop Client")
         .setSize(conf.size(), dpiScaling)
         .setWindowFlags(Configuration::WindowFlag::Resizable);
-
 
     GLConfiguration glConf;
     glConf.setSampleCount(dpiScaling.max() < 2.0f ? 8 : 2);
@@ -95,17 +98,42 @@ void PwngClient::setupWindow()
     }
 
     // Prepare ImGui
-    ImGUI_ = Magnum::ImGuiIntegration::Context({1000.0, 1000.0},
+    ImGUI_ = ImGuiIntegration::Context({500.0, 500.0},
     windowSize(), framebufferSize());
     UIStyle_ = &ImGui::GetStyle();
     UIStyleDefault_ = *UIStyle_;
     UIStyleSubStats_ = *UIStyle_;
     UIStyleSubStats_.WindowRounding = 0.0f;
 
-    Magnum::GL::Renderer::setBlendEquation(Magnum::GL::Renderer::BlendEquation::Add,
-    Magnum::GL::Renderer::BlendEquation::Add);
-    Magnum::GL::Renderer::setBlendFunction(Magnum::GL::Renderer::BlendFunction::SourceAlpha,
-    Magnum::GL::Renderer::BlendFunction::OneMinusSourceAlpha);
+    GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add,
+    GL::Renderer::BlendEquation::Add);
+    GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha,
+    GL::Renderer::BlendFunction::OneMinusSourceAlpha);
+}
+
+void PwngClient::updateUI()
+{
+    GL::Renderer::enable(GL::Renderer::Feature::Blending);
+    GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
+    GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
+    GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
+
+    ImGUI_.newFrame();
+    {
+        ImGui::Begin("Test");
+            ImGui::TextColored(ImVec4(1,1,0,1), "Performance");
+            ImGui::Indent();
+                ImGui::Text("Frame Time:  %.3f ms; (%.1f FPS)",
+                            1000.0/Double(ImGui::GetIO().Framerate), Double(ImGui::GetIO().Framerate));
+            ImGui::Unindent();
+        ImGui::End();
+    }
+    ImGUI_.drawFrame();
+
+    GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add,
+    GL::Renderer::BlendEquation::Add);
+    GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha,
+    GL::Renderer::BlendFunction::OneMinusSourceAlpha);
 }
 
 MAGNUM_APPLICATION_MAIN(PwngClient)
