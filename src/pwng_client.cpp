@@ -70,11 +70,8 @@ void PwngClient::setupNetwork()
     Messages.setColored(true);
     Messages.setLevel(MessageHandler::DEBUG_L3);
 
-    std::string Uri = "ws://localhost:9002/?id=1";
-
-    Network.init(&InputQueue_, &OutputQueue_, Uri);
+    Network.init(&InputQueue_, &OutputQueue_);
 }
-
 
 void PwngClient::setupWindow()
 {
@@ -118,13 +115,33 @@ void PwngClient::updateUI()
     GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
     GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
 
+    auto& Network = Reg_.ctx<NetworkManager>();
+
     ImGUI_.newFrame();
     {
-        ImGui::Begin("Test");
+        ImGui::Begin("PwNG Desktop Client");
             ImGui::TextColored(ImVec4(1,1,0,1), "Performance");
             ImGui::Indent();
                 ImGui::Text("Frame Time:  %.3f ms; (%.1f FPS)",
                             1000.0/Double(ImGui::GetIO().Framerate), Double(ImGui::GetIO().Framerate));
+            ImGui::Unindent();
+
+            ImGui::TextColored(ImVec4(1,1,0,1), "Client control");
+            ImGui::Indent();
+                std::string Uri = "ws://localhost:9002/?id=1";
+                if (Network.isConnected())
+                {
+                    if (ImGui::Button("Disconnect")) Network.disconnect();
+                }
+                else
+                {
+                    if (ImGui::Button("Connect")) Network.connect(Uri);
+                }
+                if (ImGui::Button("Quit Client"))
+                {
+                    Network.quit();
+                    Platform::Application::Sdl2Application::exit();
+                }
             ImGui::Unindent();
         ImGui::End();
     }

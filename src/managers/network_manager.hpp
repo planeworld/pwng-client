@@ -22,19 +22,23 @@ class NetworkManager
 
         NetworkManager(entt::registry& _Reg) : Reg_(_Reg) {}
 
+        bool isConnected() const {return IsConnected_;}
         bool isRunning() const {return IsRunning_;}
 
         bool init(moodycamel::ConcurrentQueue<std::string>* const _InputQueue,
-                  moodycamel::ConcurrentQueue<std::string>* const _OutputQueue,
-                  const std::string& _Uri);
-        bool stop();
+                  moodycamel::ConcurrentQueue<std::string>* const _OutputQueue);
+        bool connect(const std::string& _Uri);
+        bool disconnect();
+        void quit();
 
     private:
 
         void onClose(websocketpp::connection_hdl);
+        void onFail();
         void onMessage(websocketpp::connection_hdl, ClientType::message_ptr _Msg);
-        bool onValidate(websocketpp::connection_hdl);
+        bool onOpen(websocketpp::connection_hdl);
         void run();
+        void reset();
 
         entt::registry& Reg_;
 
@@ -50,6 +54,7 @@ class NetworkManager
         std::thread ThreadClient_;
         std::thread ThreadSender_;
 
+        bool IsConnected_{false};
         bool IsRunning_{true};
 };
 
