@@ -23,9 +23,12 @@ class PwngClient : public Magnum::Platform::Application
 
         //--- Window Event Handling ---//
         void drawEvent() override;
+        void keyPressEvent(KeyEvent& Event) override;
+        void keyReleaseEvent(KeyEvent& Event) override;
         void mouseMoveEvent(MouseMoveEvent& Event) override;
         void mousePressEvent(MouseEvent& Event) override;
         void mouseReleaseEvent(MouseEvent& Event) override;
+        void textInputEvent(TextInputEvent& Event) override;
         void viewportEvent(ViewportEvent& Event) override;
 
         void setupNetwork();

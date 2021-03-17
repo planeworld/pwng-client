@@ -1,8 +1,8 @@
 #ifndef NETWORK_MANAGER_HPP
 #define NETWORK_MANAGER_HPP
 
+#include <atomic>
 #include <map>
-#include <mutex>
 #include <string>
 #include <thread>
 
@@ -54,8 +54,8 @@ class NetworkManager
         std::thread ThreadClient_;
         std::thread ThreadSender_;
 
-        bool IsConnected_{false};
-        bool IsRunning_{true};
+        std::atomic<bool> IsConnected_{false};
+        std::atomic<bool> IsRunning_{true};
 };
 
 #endif // NETWORK_MANAGER_HPP

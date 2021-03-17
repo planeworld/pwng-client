@@ -42,10 +42,8 @@ bool NetworkManager::connect(const std::string& _Uri)
 {
     if (!IsConnected_)
     {
-        // Maybe there's still a stale connection due to server-side disconnect
-        if (ThreadClient_.joinable()) this->reset();
-
         auto& Messages = Reg_.ctx<MessageHandler>();
+
         DBLK(Messages.report("net", "Connecting", MessageHandler::DEBUG_L1);)
 
         websocketpp::lib::error_code ErrorCode;
@@ -62,19 +60,49 @@ bool NetworkManager::connect(const std::string& _Uri)
     return true;
 }
 
+bool NetworkManager::disconnect()
+{
+    if (IsConnected_)
+    {
+        auto& Messages = Reg_.ctx<MessageHandler>();
+
+        DBLK(Messages.report("net", "Disconnecting", MessageHandler::DEBUG_L1);)
+
+        auto Con = Client_.get_con_from_hdl(Connection_);
+        websocketpp::lib::error_code ErrorCode;
+        Con->close(websocketpp::close::status::normal, "Client closing connection.", ErrorCode);
+        if (ErrorCode)
+        {
+            Messages.report("net", "Disconnecting failed: " + ErrorCode.message(), MessageHandler::ERROR);
+        }
+        IsConnected_.store(false);
+
+        this->reset();
+    }
+
+    return true;
+}
+
+void NetworkManager::quit()
+{
+    this->disconnect();
+    if (ThreadClient_.joinable()) this->reset();
+    IsRunning_.store(false);
+    ThreadSender_.join();
+}
+
 void NetworkManager::onClose(websocketpp::connection_hdl _Connection)
 {
     auto& Messages = Reg_.ctx<MessageHandler>();
     Messages.report("net", "Connection closed", MessageHandler::INFO);
-    IsConnected_ = false;
-    IsRunning_ = false;
+    IsConnected_.store(false);
 }
 
 void NetworkManager::onFail()
 {
     auto& Messages = Reg_.ctx<MessageHandler>();
     Messages.report("net", "Connection failed", MessageHandler::ERROR);
-    IsConnected_ = false;
+    IsConnected_.store(false);
 }
 
 void NetworkManager::onMessage(websocketpp::connection_hdl _Connection, ClientType::message_ptr _Msg)
@@ -91,7 +119,7 @@ bool NetworkManager::onOpen(websocketpp::connection_hdl _Connection)
 
     Messages.report("net", "Connection opened", MessageHandler::INFO);
     Connection_ = _Connection;
-    IsConnected_ = true;
+    IsConnected_.store(true);
 
     return true;
 }
@@ -127,60 +155,20 @@ void NetworkManager::run()
                 MessageStream_.str({});
             }
         )
-        if (!IsConnected_ && ThreadClient_.joinable())
+
+        std::string Message;
+        while (IsConnected_ && OutputQueue_->try_dequeue(Message))
         {
-            DBLK(Messages.report("net", "Terminating stale connection", MessageHandler::DEBUG_L1);)
-            this->reset();
+            DBLK(Messages.report("net", "Sending message", MessageHandler::DEBUG_L2);)
+            websocketpp::lib::error_code ErrorCode;
+            Client_.send(Connection_, Message, websocketpp::frame::opcode::text, ErrorCode);
+            if (ErrorCode)
+            {
+                Messages.report("net", "Sending failed: " + ErrorCode.message());
+            }
         }
-
-    //     std::string Message;
-    //     while (OutputQueue_->try_dequeue(Message))
-    //     {
-    //         std::string ID = "1";
-
-    //         auto it = Connections_.find(ID);
-    //         if (it != Connections_.end())
-    //         {
-    //             auto Connection = it->second;
-    //             websocketpp::lib::error_code ErrorCode;
-    //             Client_.send(Connection, Message, websocketpp::frame::opcode::text, ErrorCode);
-    //             if (ErrorCode)
-    //             {
-    //                 Reg_.ctx<ErrorHandler>().report("Sending failed: " + ErrorCode.message());
-    //             }
-    //         }
-    //         else
-    //         {
-    //             // std::cout << "Socket unknown, message dropped" << std::endl;
-    //         }
-
-    //         // std::cout << Message << std::endl;
-    //     }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-}
-
-bool NetworkManager::disconnect()
-{
-    if (IsConnected_)
-    {
-        auto& Messages = Reg_.ctx<MessageHandler>();
-
-        DBLK(Messages.report("net", "Disconnecting", MessageHandler::DEBUG_L1);)
-
-        auto Con = Client_.get_con_from_hdl(Connection_);
-        websocketpp::lib::error_code ErrorCode;
-        Con->close(websocketpp::close::status::normal, "Client closing connection.", ErrorCode);
-        if (ErrorCode)
-        {
-            Messages.report("net", "Disconnecting failed: " + ErrorCode.message(), MessageHandler::ERROR);
-        }
-        IsConnected_ = false;
-
-        this->reset();
-    }
-
-    return true;
 }
 
 void NetworkManager::reset()
@@ -189,10 +177,3 @@ void NetworkManager::reset()
     Client_.reset();
 }
 
-void NetworkManager::quit()
-{
-    this->disconnect();
-    if (ThreadClient_.joinable()) this->reset();
-    IsRunning_ = false;
-    ThreadSender_.join();
-}

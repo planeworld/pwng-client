@@ -38,6 +38,16 @@ void PwngClient::drawEvent()
     redraw();
 }
 
+void PwngClient::keyPressEvent(KeyEvent& Event)
+{
+    ImGUI_.handleKeyPressEvent(Event);
+}
+
+void PwngClient::keyReleaseEvent(KeyEvent& Event)
+{
+    ImGUI_.handleKeyReleaseEvent(Event);
+}
+
 void PwngClient::mouseMoveEvent(MouseMoveEvent& Event)
 {
     ImGUI_.handleMouseMoveEvent(Event);
@@ -51,6 +61,11 @@ void PwngClient::mousePressEvent(MouseEvent& Event)
 void PwngClient::mouseReleaseEvent(MouseEvent& Event)
 {
     ImGUI_.handleMouseReleaseEvent(Event);
+}
+
+void PwngClient::textInputEvent(TextInputEvent& Event)
+{
+    ImGUI_.handleTextInputEvent(Event);
 }
 
 void PwngClient::viewportEvent(ViewportEvent& Event)
@@ -141,6 +156,18 @@ void PwngClient::updateUI()
                 {
                     Network.quit();
                     Platform::Application::Sdl2Application::exit();
+                }
+            ImGui::Unindent();
+            ImGui::TextColored(ImVec4(1,1,0,1), "Server control");
+            ImGui::Indent();
+                static char Buf[128] = "Hello Server";
+                ImGui::InputText("", Buf, IM_ARRAYSIZE(Buf));
+                if (ImGui::Button("Send"))
+                {
+                    json j = {
+                                {"Message", Buf}
+                             };
+                    OutputQueue_.enqueue(j.dump());
                 }
             ImGui::Unindent();
         ImGui::End();
