@@ -160,14 +160,21 @@ void PwngClient::updateUI()
             ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Server control");
             ImGui::Indent();
-                static char Buf[128] = "Hello Server";
-                ImGui::InputText("", Buf, IM_ARRAYSIZE(Buf));
+                static char Id[10] = "1";
+                ImGui::Text("ID     ");
+                ImGui::SameLine();
+                ImGui::InputText("##ID", Id, IM_ARRAYSIZE(Id));
+                static char Msg[128] = "Hello Server";
+                ImGui::Text("Message");
+                ImGui::SameLine();
+                ImGui::InputText("##Message", Msg, IM_ARRAYSIZE(Msg));
+                ImGui::SameLine();
                 if (ImGui::Button("Send"))
                 {
                     json j = {  {"jsonrpc", "2.0"},
                                 {"method", "send"},
-                                {"params", {{"Message", Buf}}},
-                                {"id", "1"}
+                                {"params", {{"Message", Msg}}},
+                                {"id", Id}
                              };
                     OutputQueue_.enqueue(j.dump(4));
                 }
