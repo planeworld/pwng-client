@@ -44,6 +44,12 @@ bool NetworkManager::connect(const std::string& _Uri)
     {
         auto& Messages = Reg_.ctx<MessageHandler>();
 
+        if (ThreadClient_.joinable())
+        {
+            this->reset();
+            DBLK(Messages.report("net", "Closing stale connection", MessageHandler::DEBUG_L1);)
+        }
+
         DBLK(Messages.report("net", "Connecting", MessageHandler::DEBUG_L1);)
 
         websocketpp::lib::error_code ErrorCode;
@@ -95,6 +101,7 @@ void NetworkManager::onClose(websocketpp::connection_hdl _Connection)
 {
     auto& Messages = Reg_.ctx<MessageHandler>();
     Messages.report("net", "Connection closed", MessageHandler::INFO);
+
     IsConnected_.store(false);
 }
 
@@ -108,8 +115,7 @@ void NetworkManager::onFail()
 void NetworkManager::onMessage(websocketpp::connection_hdl _Connection, ClientType::message_ptr _Msg)
 {
     auto& Messages = Reg_.ctx<MessageHandler>();
-    DBLK(Messages.report("net", "Incoming message enqueued", MessageHandler::DEBUG_L2);)
-    // DBLK(Messages.report("net", "Content: " + _Msg->get_payload(), MessageHandler::DEBUG_L3);)
+    DBLK(Messages.report("net", "Enqueueing incoming message\n" + _Msg->get_payload(), MessageHandler::DEBUG_L3);)
     InputQueue_->enqueue(_Msg->get_payload());
 }
 

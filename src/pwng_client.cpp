@@ -164,10 +164,12 @@ void PwngClient::updateUI()
                 ImGui::InputText("", Buf, IM_ARRAYSIZE(Buf));
                 if (ImGui::Button("Send"))
                 {
-                    json j = {
-                                {"Message", Buf}
+                    json j = {  {"jsonrpc", "2.0"},
+                                {"method", "send"},
+                                {"params", {{"Message", Buf}}},
+                                {"id", "1"}
                              };
-                    OutputQueue_.enqueue(j.dump());
+                    OutputQueue_.enqueue(j.dump(4));
                 }
             ImGui::Unindent();
         ImGui::End();
