@@ -125,6 +125,8 @@ void PwngClient::setupWindow()
 
 void PwngClient::updateUI()
 {
+    auto& Messages = Reg_.ctx<MessageHandler>();
+
     GL::Renderer::enable(GL::Renderer::Feature::Blending);
     GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
     GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
@@ -157,6 +159,21 @@ void PwngClient::updateUI()
                     Network.quit();
                     Platform::Application::Sdl2Application::exit();
                 }
+
+                // If compiled debug, let the user choose debug level to avoid
+                // excessive console spamming
+                DBLK(
+                    static int DebugLevel = 5;
+                    ImGui::Text("Verbosity:");
+                    ImGui::Indent();
+                        ImGui::RadioButton("Info", &DebugLevel, 2);
+                        ImGui::RadioButton("Debug Level 1", &DebugLevel, 3);
+                        ImGui::RadioButton("Debug Level 2", &DebugLevel, 4);
+                        ImGui::RadioButton("Debug Level 3", &DebugLevel, 5);
+                    ImGui::Unindent();
+                    Messages.setLevel(MessageHandler::ReportLevelType(DebugLevel));
+                )
+
             ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Server control");
             ImGui::Indent();
