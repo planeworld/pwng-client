@@ -1,6 +1,8 @@
 #ifndef PWNG_CLIENT_HPP
 #define PWNG_CLIENT_HPP
 
+#include <string>
+
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/ImGuiIntegration/Context.hpp>
 #include <Magnum/Math/Color.h>
@@ -34,6 +36,8 @@ class PwngClient : public Magnum::Platform::Application
         void setupNetwork();
         void setupWindow();
         void updateUI();
+
+        void sendJsonRpcMessage(const std::string& _Msg, const std::string& _ID);
 
         //--- UI ---//
         Magnum::ImGuiIntegration::Context ImGUI_{Magnum::NoCreate};

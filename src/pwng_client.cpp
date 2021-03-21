@@ -2,16 +2,14 @@
 #include <chrono>
 #include <ctime>
 #include <iostream>
-#include <string>
 #include <thread>
 
 #include <argagg/argagg.hpp>
 #include <concurrentqueue/concurrentqueue.h>
 #include <entt/entity/registry.hpp>
+#include <nlohmann/json.hpp>
 
 #include <Magnum/GL/Renderer.h>
-
-#include <nlohmann/json.hpp>
 
 #include "message_handler.hpp"
 #include "network_manager.hpp"
@@ -188,12 +186,19 @@ void PwngClient::updateUI()
                 ImGui::SameLine();
                 if (ImGui::Button("Send"))
                 {
-                    json j = {  {"jsonrpc", "2.0"},
-                                {"method", "send"},
-                                {"params", {{"Message", Msg}}},
-                                {"id", Id}
-                             };
-                    OutputQueue_.enqueue(j.dump(4));
+                    this->sendJsonRpcMessage(Msg, Id);
+                }
+                if (ImGui::Button("Start Simulation"))
+                {
+                    this->sendJsonRpcMessage("start_simulation", "c001");
+                }
+                if (ImGui::Button("Stop Simulation"))
+                {
+                    this->sendJsonRpcMessage("stop_simulation", "c001");
+                }
+                if (ImGui::Button("Shutdown Server"))
+                {
+                    this->sendJsonRpcMessage("shutdown", "c0002");
                 }
             ImGui::Unindent();
         ImGui::End();
@@ -204,6 +209,15 @@ void PwngClient::updateUI()
     GL::Renderer::BlendEquation::Add);
     GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha,
     GL::Renderer::BlendFunction::OneMinusSourceAlpha);
+}
+
+void PwngClient::sendJsonRpcMessage(const std::string& _Msg, const std::string& _ID)
+{
+    json j =  {{"jsonrpc", "2.0"},
+               {"method", "send"},
+               {"params", {{"Message", _Msg}}},
+               {"id", _ID}};
+    OutputQueue_.enqueue(j.dump(4));
 }
 
 MAGNUM_APPLICATION_MAIN(PwngClient)
