@@ -13,7 +13,9 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/3rdparty/modules" ${CMAKE_MODULE_PA
 find_package(Corrade REQUIRED Main)
 find_package(Magnum REQUIRED
     GL
+    MeshTools
     Sdl2Application
+    Primitives
     Shaders
     )
 find_package(MagnumIntegration REQUIRED ImGui)

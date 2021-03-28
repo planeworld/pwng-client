@@ -4,6 +4,17 @@
 #include <iostream>
 #include <thread>
 
+// #include <Magnum/GL/Mesh.h>
+// #include <Magnum/GL/Renderer.h>
+#include <Magnum/Math/Vector2.h>
+#include <Magnum/Math/Matrix3.h>
+#include <Magnum/MeshTools/Compile.h>
+// #include <Magnum/MeshTools/Transform.h>
+#include <Magnum/Primitives/Circle.h>
+// #include <Magnum/Primitives/Square.h>
+#include <Magnum/Shaders/Flat.h>
+#include <Magnum/Trade/MeshData.h>
+
 #include <argagg/argagg.hpp>
 #include <concurrentqueue/concurrentqueue.h>
 #include <entt/entity/registry.hpp>
@@ -17,6 +28,17 @@
 
 using json = nlohmann::json;
 
+struct PositionComponent
+{
+    double x{0.0};
+    double y{0.0};
+};
+
+struct CircleComponent
+{
+    double r{1.0};
+};
+
 PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate}
 {
     Reg_.set<MessageHandler>();
@@ -26,11 +48,18 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
     this->setupNetwork();
     setSwapInterval(0);
     setMinimalLoopPeriod(1.0f/60.0f * 1000.0f);
+
+    // auto e = Reg_.create();
+    // Reg_.emplace<PositionComponent>(e);
+    // Reg_.emplace<CircleComponent>(e, 20.0);
+
 }
 
 void PwngClient::drawEvent()
 {
     GL::defaultFramebuffer.clearColor(Color4(0.0f, 0.0f, 0.0f, 1.0f));
+    this->getObjectsFromQueue();
+    this->renderScene();
     this->updateUI();
     swapBuffers();
     redraw();
@@ -71,6 +100,57 @@ void PwngClient::viewportEvent(ViewportEvent& Event)
     GL::defaultFramebuffer.setViewport({{}, Event.framebufferSize()});
 
     ImGUI_.relayout(Vector2(Event.windowSize()), Event.windowSize(), Event.framebufferSize());
+}
+
+void PwngClient::getObjectsFromQueue()
+{
+    std::string Data;
+    while (InputQueue_.try_dequeue(Data))
+    {
+        json j = json::parse(Data);
+
+        double x = j["params"]["px"];
+        double y = j["params"]["py"];
+        x *= 3.0e-9;
+        y *= 3.0e-9;
+
+        std::uint32_t Id = j["params"]["eid"];
+
+        auto ci = Id2EntityMap_.find(Id);
+        if (ci != Id2EntityMap_.end())
+        {
+            Reg_.replace<PositionComponent>(ci->second, x, y);
+        }
+        else
+        {
+            auto e = Reg_.create();
+            Reg_.emplace<PositionComponent>(e, x, y);
+            Reg_.emplace<CircleComponent>(e, 20.0);
+            Id2EntityMap_[Id] = e;
+        }
+    }
+}
+
+void PwngClient::renderScene()
+{
+    GL::defaultFramebuffer.setViewport({{}, windowSize()});
+
+    auto shape = MeshTools::compile(Primitives::circle2DSolid(20));
+    auto shader = Shaders::Flat2D{};
+
+    auto projection = Magnum::Matrix3::projection(Magnum::Vector2(windowSize()));
+
+    Reg_.view<PositionComponent, CircleComponent>().each([&](const auto& _p, const auto& _r)
+    {
+        shader.setTransformationProjectionMatrix(
+            projection *
+            Matrix3::translation(Vector2(_p.x, _p.y)) *
+            Matrix3::scaling(Vector2(_r.r, _r.r))
+        );
+
+        shader.setColor({1.0, 1.0, 1.0});
+        shader.draw(shape);
+    });
 }
 
 void PwngClient::setupNetwork()

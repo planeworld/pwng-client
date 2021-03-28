@@ -2,7 +2,9 @@
 #define PWNG_CLIENT_HPP
 
 #include <string>
+#include <unordered_map>
 
+#include <entt/entity/entity.hpp>
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/ImGuiIntegration/Context.hpp>
 #include <Magnum/Math/Color.h>
@@ -33,11 +35,16 @@ class PwngClient : public Magnum::Platform::Application
         void textInputEvent(TextInputEvent& Event) override;
         void viewportEvent(ViewportEvent& Event) override;
 
+        void getObjectsFromQueue();
+        void renderScene();
         void setupNetwork();
         void setupWindow();
         void updateUI();
 
         void sendJsonRpcMessage(const std::string& _Msg, const std::string& _ID);
+
+        //--- Graphics ---//
+        std::unordered_map<std::uint32_t, entt::entity> Id2EntityMap_;
 
         //--- UI ---//
         Magnum::ImGuiIntegration::Context ImGUI_{Magnum::NoCreate};

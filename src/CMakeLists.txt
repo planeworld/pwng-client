@@ -26,6 +26,7 @@ target_link_libraries(pwng-client PRIVATE
   Magnum::Application
   Magnum::GL
   Magnum::Magnum
+  Magnum::Primitives
   Magnum::Shaders
   MagnumIntegration::ImGui
   nlohmann_json::nlohmann_json
