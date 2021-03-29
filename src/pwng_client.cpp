@@ -7,12 +7,7 @@
 // #include <Magnum/GL/Mesh.h>
 // #include <Magnum/GL/Renderer.h>
 #include <Magnum/Math/Vector2.h>
-#include <Magnum/Math/Matrix3.h>
 #include <Magnum/MeshTools/Compile.h>
-// #include <Magnum/MeshTools/Transform.h>
-#include <Magnum/Primitives/Circle.h>
-// #include <Magnum/Primitives/Square.h>
-#include <Magnum/Shaders/Flat.h>
 #include <Magnum/Trade/MeshData.h>
 
 #include <argagg/argagg.hpp>
@@ -39,19 +34,27 @@ struct CircleComponent
     double r{1.0};
 };
 
+struct NameComponent
+{
+    std::string n{"Jane Doe"};
+};
+
 PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate}
 {
     Reg_.set<MessageHandler>();
     Reg_.set<NetworkManager>(Reg_);
+
+    auto& Messages = Reg_.ctx<MessageHandler>();
+
+    Messages.registerSource("prg", "prg");
 
     this->setupWindow();
     this->setupNetwork();
     setSwapInterval(0);
     setMinimalLoopPeriod(1.0f/60.0f * 1000.0f);
 
-    // auto e = Reg_.create();
-    // Reg_.emplace<PositionComponent>(e);
-    // Reg_.emplace<CircleComponent>(e, 20.0);
+    Shader_ = Shaders::Flat2D{};
+    CircleShape_ = MeshTools::compile(Primitives::circle2DSolid(100));
 
 }
 
@@ -99,34 +102,56 @@ void PwngClient::viewportEvent(ViewportEvent& Event)
 {
     GL::defaultFramebuffer.setViewport({{}, Event.framebufferSize()});
 
+    Projection_= Magnum::Matrix3::projection(Magnum::Vector2(windowSize()));
+
     ImGUI_.relayout(Vector2(Event.windowSize()), Event.windowSize(), Event.framebufferSize());
 }
 
 void PwngClient::getObjectsFromQueue()
 {
+    auto& Messages = Reg_.ctx<MessageHandler>();
+
     std::string Data;
     while (InputQueue_.try_dequeue(Data))
     {
         json j = json::parse(Data);
 
-        double x = j["params"]["px"];
-        double y = j["params"]["py"];
-        x *= 3.0e-9;
-        y *= 3.0e-9;
-
-        std::uint32_t Id = j["params"]["eid"];
-
-        auto ci = Id2EntityMap_.find(Id);
-        if (ci != Id2EntityMap_.end())
+        if (j["method"] == "sim_broadcast")
         {
-            Reg_.replace<PositionComponent>(ci->second, x, y);
-        }
-        else
-        {
-            auto e = Reg_.create();
-            Reg_.emplace<PositionComponent>(e, x, y);
-            Reg_.emplace<CircleComponent>(e, 20.0);
-            Id2EntityMap_[Id] = e;
+
+            std::string s{j["params"]["name"]};
+            double x = j["params"]["px"];
+            double y = j["params"]["py"];
+            x *= 3.0e-9;
+            y *= 3.0e-9;
+            double r = j["params"]["r"];
+
+            if (ShowRealObjectSizes_)
+            {
+                r = r*3.0e-8+10.0;
+            }
+            else
+            {
+                r = r*3.0e-9;
+            }
+
+            std::uint32_t Id = j["params"]["eid"];
+
+            auto ci = Id2EntityMap_.find(Id);
+            if (ci != Id2EntityMap_.end())
+            {
+                Reg_.replace<PositionComponent>(ci->second, x, y);
+                DBLK(Messages.report("prg", "Position updated", MessageHandler::DEBUG_L3);)
+            }
+            else
+            {
+                auto e = Reg_.create();
+                Reg_.emplace<PositionComponent>(e, x, y);
+                Reg_.emplace<CircleComponent>(e, r);
+                Reg_.emplace<NameComponent>(e, s);
+                Id2EntityMap_[Id] = e;
+                DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
+            }
         }
     }
 }
@@ -135,21 +160,16 @@ void PwngClient::renderScene()
 {
     GL::defaultFramebuffer.setViewport({{}, windowSize()});
 
-    auto shape = MeshTools::compile(Primitives::circle2DSolid(20));
-    auto shader = Shaders::Flat2D{};
-
-    auto projection = Magnum::Matrix3::projection(Magnum::Vector2(windowSize()));
-
     Reg_.view<PositionComponent, CircleComponent>().each([&](const auto& _p, const auto& _r)
     {
-        shader.setTransformationProjectionMatrix(
-            projection *
+        Shader_.setTransformationProjectionMatrix(
+            Projection_ *
             Matrix3::translation(Vector2(_p.x, _p.y)) *
             Matrix3::scaling(Vector2(_r.r, _r.r))
         );
 
-        shader.setColor({1.0, 1.0, 1.0});
-        shader.draw(shape);
+        Shader_.setColor({1.0, 1.0, 1.0});
+        Shader_.draw(CircleShape_);
     });
 }
 
@@ -204,13 +224,12 @@ void PwngClient::setupWindow()
 void PwngClient::updateUI()
 {
     auto& Messages = Reg_.ctx<MessageHandler>();
+    auto& Network = Reg_.ctx<NetworkManager>();
 
     GL::Renderer::enable(GL::Renderer::Feature::Blending);
     GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
     GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
     GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
-
-    auto& Network = Reg_.ctx<NetworkManager>();
 
     ImGUI_.newFrame();
     {
@@ -241,7 +260,7 @@ void PwngClient::updateUI()
                 // If compiled debug, let the user choose debug level to avoid
                 // excessive console spamming
                 DBLK(
-                    static int DebugLevel = 5;
+                    static int DebugLevel = 4;
                     ImGui::Text("Verbosity:");
                     ImGui::Indent();
                         ImGui::RadioButton("Info", &DebugLevel, 2);
@@ -281,7 +300,30 @@ void PwngClient::updateUI()
                     this->sendJsonRpcMessage("shutdown", "c0002");
                 }
             ImGui::Unindent();
+            ImGui::TextColored(ImVec4(1,1,0,1), "Display");
+            ImGui::Indent();
+                ImGui::Checkbox("Show Real Object Sizes", &ShowRealObjectSizes_);
+            ImGui::Unindent();
         ImGui::End();
+        Reg_.view<PositionComponent, CircleComponent, NameComponent>().each([this](const auto& _p, const auto& _r, const auto& _n)
+        {
+            ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDecoration |
+                                           ImGuiWindowFlags_AlwaysAutoResize |
+                                           ImGuiWindowFlags_NoSavedSettings |
+                                           ImGuiWindowFlags_NoFocusOnAppearing |
+                                           ImGuiWindowFlags_NoInputs |
+                                           ImGuiWindowFlags_NoNav |
+                                           ImGuiWindowFlags_NoMove;
+            bool CloseButton{false};
+            // ImGui::SetNextWindowPos(ImVec2(int(_p.x*6.0e-4*windowSize().x()+windowSize().x()/2), int(-_p.y*6.0e-4*windowSize().y()+windowSize().y()/2)));
+            // if (_r.r * 3.0e-8 > 1.0)
+            {
+                ImGui::SetNextWindowPos(ImVec2(int(_p.x+0.5*windowSize().x()), int(-_p.y+0.5*windowSize().y())));
+                ImGui::Begin(_n.n.c_str(), &CloseButton, WindowFlags);
+                    ImGui::Text(_n.n.c_str());
+                ImGui::End();
+            }
+        });
     }
     ImGUI_.drawFrame();
 

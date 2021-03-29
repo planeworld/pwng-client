@@ -8,7 +8,10 @@
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/ImGuiIntegration/Context.hpp>
 #include <Magnum/Math/Color.h>
+#include <Magnum/Math/Matrix3.h>
 #include <Magnum/Platform/Sdl2Application.h>
+#include <Magnum/Primitives/Circle.h>
+#include <Magnum/Shaders/Flat.h>
 
 using namespace Magnum;
 
@@ -45,6 +48,11 @@ class PwngClient : public Magnum::Platform::Application
 
         //--- Graphics ---//
         std::unordered_map<std::uint32_t, entt::entity> Id2EntityMap_;
+        GL::Mesh CircleShape_{NoCreate};
+        Matrix3 Projection_;
+        Shaders::Flat2D Shader_{NoCreate};
+
+        bool ShowRealObjectSizes_{false};
 
         //--- UI ---//
         Magnum::ImGuiIntegration::Context ImGUI_{Magnum::NoCreate};
