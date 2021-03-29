@@ -128,11 +128,11 @@ void PwngClient::getObjectsFromQueue()
 
             if (ShowRealObjectSizes_)
             {
-                r = r*3.0e-8+10.0;
+                r = r*3.0e-9;
             }
             else
             {
-                r = r*3.0e-9;
+                r = r*3.0e-8+10.0;
             }
 
             std::uint32_t Id = j["params"]["eid"];
@@ -141,6 +141,7 @@ void PwngClient::getObjectsFromQueue()
             if (ci != Id2EntityMap_.end())
             {
                 Reg_.replace<PositionComponent>(ci->second, x, y);
+                Reg_.replace<CircleComponent>(ci->second, r);
                 DBLK(Messages.report("prg", "Position updated", MessageHandler::DEBUG_L3);)
             }
             else
