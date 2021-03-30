@@ -80,7 +80,22 @@ void PwngClient::keyReleaseEvent(KeyEvent& Event)
 
 void PwngClient::mouseMoveEvent(MouseMoveEvent& Event)
 {
-    ImGUI_.handleMouseMoveEvent(Event);
+    if (!ImGUI_.handleMouseMoveEvent(Event))
+    {
+        if (Event.modifiers() & MouseMoveEvent::Modifier::Ctrl)
+        {
+            if (Event.modifiers() & MouseMoveEvent::Modifier::Shift)
+            {
+                CamZoom_ -= 0.01*Event.relativePosition().y();
+            }
+            else
+            {
+                CamX_ += Event.relativePosition().x() / CamZoom_;
+                CamY_ += Event.relativePosition().y() / CamZoom_;
+            }
+        }
+    }
+
 }
 
 void PwngClient::mousePressEvent(MouseEvent& Event)
@@ -124,6 +139,12 @@ void PwngClient::getObjectsFromQueue()
             double y = j["params"]["py"];
             x *= 3.0e-9;
             y *= 3.0e-9;
+
+            x -= CamX_;
+            y += CamY_;
+            x *= CamZoom_;
+            y *= CamZoom_;
+
             double r = j["params"]["r"];
 
             if (ShowRealObjectSizes_)

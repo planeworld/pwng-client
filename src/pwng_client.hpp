@@ -52,6 +52,11 @@ class PwngClient : public Magnum::Platform::Application
         Matrix3 Projection_;
         Shaders::Flat2D Shader_{NoCreate};
 
+        // --- Graphics - Camera ---//
+        double CamX_{0.0};
+        double CamY_{0.0};
+        double CamZoom_{1.0};
+
         bool ShowRealObjectSizes_{false};
 
         //--- UI ---//
