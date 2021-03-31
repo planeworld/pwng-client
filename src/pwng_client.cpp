@@ -168,8 +168,8 @@ void PwngClient::renderScene()
 
     Reg_.view<PositionComponent, CircleComponent>().each([&](const auto& _p, const auto& _r)
     {
-        auto x = _p.x * 3.0e-9;
-        auto y = _p.y * 3.0e-9;
+        auto x = _p.x;
+        auto y = _p.y;
 
         x -= CamX_;
         y += CamY_;
@@ -179,13 +179,13 @@ void PwngClient::renderScene()
         auto r = _r.r;
         if (RealObjectSizes_)
         {
-            r *= 3.0e-9 * CamZoom_;
+            r *= CamZoom_;
+            if (r < 0.5) r=0.5;
         }
         else
         {
-            r = r * 3.0e-8 * CamZoom_ + 10.0;
+            r = r * CamZoom_ * 10.0 + 10.0;
         }
-
 
         Shader_.setTransformationProjectionMatrix(
             Projection_ *
@@ -349,8 +349,8 @@ void PwngClient::updateUI()
                                             ImGuiWindowFlags_NoNav |
                                             ImGuiWindowFlags_NoMove;
                 bool CloseButton{false};
-                auto x = _p.x * 3.0e-9;
-                auto y = _p.y * 3.0e-9;
+                auto x = _p.x;
+                auto y = _p.y;
 
                 x -= CamX_;
                 y += CamY_;
