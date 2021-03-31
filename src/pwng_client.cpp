@@ -86,7 +86,8 @@ void PwngClient::mouseMoveEvent(MouseMoveEvent& Event)
         {
             if (Event.modifiers() & MouseMoveEvent::Modifier::Shift)
             {
-                CamZoom_ -= 0.01*Event.relativePosition().y();
+                if (CamZoom_ - 0.01*Event.relativePosition().y()*CamZoom_ > 0.0)
+                    CamZoom_ -= 0.01*Event.relativePosition().y()*CamZoom_;
             }
             else
             {
@@ -137,24 +138,7 @@ void PwngClient::getObjectsFromQueue()
             std::string s{j["params"]["name"]};
             double x = j["params"]["px"];
             double y = j["params"]["py"];
-            x *= 3.0e-9;
-            y *= 3.0e-9;
-
-            x -= CamX_;
-            y += CamY_;
-            x *= CamZoom_;
-            y *= CamZoom_;
-
             double r = j["params"]["r"];
-
-            if (ShowRealObjectSizes_)
-            {
-                r = r*3.0e-9;
-            }
-            else
-            {
-                r = r*3.0e-8+10.0;
-            }
 
             std::uint32_t Id = j["params"]["eid"];
 
@@ -184,10 +168,29 @@ void PwngClient::renderScene()
 
     Reg_.view<PositionComponent, CircleComponent>().each([&](const auto& _p, const auto& _r)
     {
+        auto x = _p.x * 3.0e-9;
+        auto y = _p.y * 3.0e-9;
+
+        x -= CamX_;
+        y += CamY_;
+        x *= CamZoom_;
+        y *= CamZoom_;
+
+        auto r = _r.r;
+        if (RealObjectSizes_)
+        {
+            r *= 3.0e-9 * CamZoom_;
+        }
+        else
+        {
+            r = r * 3.0e-8 * CamZoom_ + 10.0;
+        }
+
+
         Shader_.setTransformationProjectionMatrix(
             Projection_ *
-            Matrix3::translation(Vector2(_p.x, _p.y)) *
-            Matrix3::scaling(Vector2(_r.r, _r.r))
+            Matrix3::translation(Vector2(x, y)) *
+            Matrix3::scaling(Vector2(r, r))
         );
 
         Shader_.setColor({1.0, 1.0, 1.0});
@@ -294,6 +297,12 @@ void PwngClient::updateUI()
                 )
 
             ImGui::Unindent();
+                ImGui::TextColored(ImVec4(1,1,0,1), "Camera Hooks");
+
+                const char* Test{"Test\0Foo\0Bar\0"};
+            ImGui::Indent();
+                ImGui::Combo("Select Hook", &CamHook_, Test);
+            ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Server control");
             ImGui::Indent();
                 static char Id[10] = "1";
@@ -324,28 +333,36 @@ void PwngClient::updateUI()
             ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Display");
             ImGui::Indent();
-                ImGui::Checkbox("Show Real Object Sizes", &ShowRealObjectSizes_);
+                ImGui::Checkbox("Real Object Sizes", &RealObjectSizes_);
+                ImGui::Checkbox("Object Labels", &ObjectLabels_);
             ImGui::Unindent();
         ImGui::End();
-        Reg_.view<PositionComponent, CircleComponent, NameComponent>().each([this](const auto& _p, const auto& _r, const auto& _n)
+        if (ObjectLabels_)
         {
-            ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDecoration |
-                                           ImGuiWindowFlags_AlwaysAutoResize |
-                                           ImGuiWindowFlags_NoSavedSettings |
-                                           ImGuiWindowFlags_NoFocusOnAppearing |
-                                           ImGuiWindowFlags_NoInputs |
-                                           ImGuiWindowFlags_NoNav |
-                                           ImGuiWindowFlags_NoMove;
-            bool CloseButton{false};
-            // ImGui::SetNextWindowPos(ImVec2(int(_p.x*6.0e-4*windowSize().x()+windowSize().x()/2), int(-_p.y*6.0e-4*windowSize().y()+windowSize().y()/2)));
-            // if (_r.r * 3.0e-8 > 1.0)
+            Reg_.view<PositionComponent, CircleComponent, NameComponent>().each([this](const auto& _p, const auto& _r, const auto& _n)
             {
-                ImGui::SetNextWindowPos(ImVec2(int(_p.x+0.5*windowSize().x()), int(-_p.y+0.5*windowSize().y())));
+                ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDecoration |
+                                            ImGuiWindowFlags_AlwaysAutoResize |
+                                            ImGuiWindowFlags_NoSavedSettings |
+                                            ImGuiWindowFlags_NoFocusOnAppearing |
+                                            ImGuiWindowFlags_NoInputs |
+                                            ImGuiWindowFlags_NoNav |
+                                            ImGuiWindowFlags_NoMove;
+                bool CloseButton{false};
+                auto x = _p.x * 3.0e-9;
+                auto y = _p.y * 3.0e-9;
+
+                x -= CamX_;
+                y += CamY_;
+                x *= CamZoom_;
+                y *= CamZoom_;
+
+                ImGui::SetNextWindowPos(ImVec2(int(x+0.5*windowSize().x()), int(-y+0.5*windowSize().y())));
                 ImGui::Begin(_n.n.c_str(), &CloseButton, WindowFlags);
                     ImGui::Text(_n.n.c_str());
                 ImGui::End();
-            }
-        });
+            });
+        }
     }
     ImGUI_.drawFrame();
 

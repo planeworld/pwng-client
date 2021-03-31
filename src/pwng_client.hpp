@@ -56,8 +56,10 @@ class PwngClient : public Magnum::Platform::Application
         double CamX_{0.0};
         double CamY_{0.0};
         double CamZoom_{1.0};
+        int    CamHook_{0};
 
-        bool ShowRealObjectSizes_{false};
+        bool RealObjectSizes_{false};
+        bool ObjectLabels_{true};
 
         //--- UI ---//
         Magnum::ImGuiIntegration::Context ImGUI_{Magnum::NoCreate};
