@@ -40,6 +40,9 @@ class PwngClient : public Magnum::Platform::Application
 
         void getObjectsFromQueue();
         void renderScene();
+        void setCameraHook(entt::entity _e);
+        void setupCamera();
+        void updateCameraHook();
         void setupNetwork();
         void setupWindow();
         void updateUI();
@@ -53,9 +56,10 @@ class PwngClient : public Magnum::Platform::Application
         Shaders::Flat2D Shader_{NoCreate};
 
         // --- Graphics - Camera ---//
-        double CamX_{0.0};
-        double CamY_{0.0};
-        double CamZoom_{3.0e-9};
+        entt::entity Camera_;
+        // double CamX_{0.0};
+        // double CamY_{0.0};
+        // double CamZoom_{3.0e-9};
         int    CamHook_{0};
 
         bool RealObjectSizes_{false};

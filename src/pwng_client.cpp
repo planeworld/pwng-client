@@ -23,21 +23,52 @@
 
 using json = nlohmann::json;
 
-struct PositionComponent
-{
-    double x{0.0};
-    double y{0.0};
-};
 
 struct CircleComponent
 {
     double r{1.0};
 };
 
+struct HookComponent
+{
+    entt::entity e{entt::null};
+    double x{0.0};
+    double y{0.0};
+};
+
 struct NameComponent
 {
     std::string n{"Jane Doe"};
 };
+
+struct PositionComponent
+{
+    double x{0.0};
+    double y{0.0};
+};
+
+struct ZoomComponent
+{
+    double z{3.0e-9};
+};
+
+namespace ImGui
+{
+static auto vector_getter = [](void* vec, int idx, const char** out_text)
+{
+    auto& vector = *static_cast<std::vector<std::string>*>(vec);
+    if (idx < 0 || idx >= static_cast<int>(vector.size())) { return false; }
+    *out_text = vector.at(idx).c_str();
+    return true;
+};
+
+bool Combo(const char* label, int* currIndex, std::vector<std::string>& values)
+{
+    if (values.empty()) { return false; }
+    return Combo(label, currIndex, vector_getter,
+        static_cast<void*>(&values), values.size());
+}
+}
 
 PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate}
 {
@@ -48,6 +79,7 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
 
     Messages.registerSource("prg", "prg");
 
+    this->setupCamera();
     this->setupWindow();
     this->setupNetwork();
     setSwapInterval(0);
@@ -61,7 +93,9 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
 void PwngClient::drawEvent()
 {
     GL::defaultFramebuffer.clearColor(Color4(0.0f, 0.0f, 0.0f, 1.0f));
+
     this->getObjectsFromQueue();
+    this->updateCameraHook();
     this->renderScene();
     this->updateUI();
     swapBuffers();
@@ -84,15 +118,17 @@ void PwngClient::mouseMoveEvent(MouseMoveEvent& Event)
     {
         if (Event.modifiers() & MouseMoveEvent::Modifier::Ctrl)
         {
+            auto& Pos = Reg_.get<PositionComponent>(Camera_);
+            auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
             if (Event.modifiers() & MouseMoveEvent::Modifier::Shift)
             {
-                if (CamZoom_ - 0.01*Event.relativePosition().y()*CamZoom_ > 0.0)
-                    CamZoom_ -= 0.01*Event.relativePosition().y()*CamZoom_;
+                if (Zoom.z - 0.01*Event.relativePosition().y()*Zoom.z > 0.0)
+                    Zoom.z -= 0.01*Event.relativePosition().y()*Zoom.z;
             }
             else
             {
-                CamX_ += Event.relativePosition().x() / CamZoom_;
-                CamY_ += Event.relativePosition().y() / CamZoom_;
+                Pos.x += Event.relativePosition().x() / Zoom.z;
+                Pos.y += Event.relativePosition().y() / Zoom.z;
             }
         }
     }
@@ -162,29 +198,51 @@ void PwngClient::getObjectsFromQueue()
     }
 }
 
+void PwngClient::setCameraHook(entt::entity _e)
+{
+    auto& h = Reg_.get<HookComponent>(Camera_);
+    h.e = _e;
+}
+
+void PwngClient::updateCameraHook()
+{
+    auto& h = Reg_.get<HookComponent>(Camera_);
+
+    if (Reg_.valid(h.e))
+    {
+        auto& p = Reg_.get<PositionComponent>(h.e);
+        h.x = p.x;
+        h.y = p.y;
+    }
+}
+
 void PwngClient::renderScene()
 {
     GL::defaultFramebuffer.setViewport({{}, windowSize()});
 
-    Reg_.view<PositionComponent, CircleComponent>().each([&](const auto& _p, const auto& _r)
+    auto& Hook = Reg_.get<HookComponent>(Camera_);
+    auto& Pos = Reg_.get<PositionComponent>(Camera_);
+    auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
+
+    Reg_.view<PositionComponent, CircleComponent>().each([this, &Hook, &Pos, &Zoom](auto _e, const auto& _p, const auto& _r)
     {
         auto x = _p.x;
         auto y = _p.y;
 
-        x -= CamX_;
-        y += CamY_;
-        x *= CamZoom_;
-        y *= CamZoom_;
+        x -= Pos.x + Hook.x;
+        y += Pos.y - Hook.y;
+        x *= Zoom.z;
+        y *= Zoom.z;
 
         auto r = _r.r;
         if (RealObjectSizes_)
         {
-            r *= CamZoom_;
+            r *= Zoom.z;
             if (r < 0.5) r=0.5;
         }
         else
         {
-            r = r * CamZoom_ * 10.0 + 10.0;
+            r = r * Zoom.z * 10.0 + 10.0;
         }
 
         Shader_.setTransformationProjectionMatrix(
@@ -196,6 +254,14 @@ void PwngClient::renderScene()
         Shader_.setColor({1.0, 1.0, 1.0});
         Shader_.draw(CircleShape_);
     });
+}
+
+void PwngClient::setupCamera()
+{
+    Camera_ = Reg_.create();
+    Reg_.emplace<HookComponent>(Camera_);
+    Reg_.emplace<PositionComponent>(Camera_);
+    Reg_.emplace<ZoomComponent>(Camera_);
 }
 
 void PwngClient::setupNetwork()
@@ -299,9 +365,27 @@ void PwngClient::updateUI()
             ImGui::Unindent();
                 ImGui::TextColored(ImVec4(1,1,0,1), "Camera Hooks");
 
-                const char* Test{"Test\0Foo\0Bar\0"};
+                std::vector<std::string> Names;
+                std::vector<entt::entity> Entities;
+                Names.push_back("None");
+                Entities.push_back(entt::null);
+                Reg_.view<NameComponent>().each(
+                    [&Names, &Entities](auto _e, const auto& _n)
+                    {
+                        Names.push_back(_n.n);
+                        Entities.push_back(_e);
+                    });
+
             ImGui::Indent();
-                ImGui::Combo("Select Hook", &CamHook_, Test);
+            if (ImGui::Combo("Select Hook", &CamHook_, Names))
+            {
+                auto& h = Reg_.get<HookComponent>(Camera_);
+                auto& p = Reg_.get<PositionComponent>(Camera_);
+                h.e = Entities[CamHook_];
+                p.x = 0.0;
+                p.y = 0.0;
+                DBLK(Messages.report("prg", "New camera hook on object " + Names[CamHook_], MessageHandler::DEBUG_L1);)
+            }
             ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Server control");
             ImGui::Indent();
@@ -339,7 +423,10 @@ void PwngClient::updateUI()
         ImGui::End();
         if (ObjectLabels_)
         {
-            Reg_.view<PositionComponent, CircleComponent, NameComponent>().each([this](const auto& _p, const auto& _r, const auto& _n)
+            auto& Hook = Reg_.get<HookComponent>(Camera_);
+            auto& Pos = Reg_.get<PositionComponent>(Camera_);
+            auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
+            Reg_.view<PositionComponent, CircleComponent, NameComponent>().each([this, &Hook, &Pos, &Zoom](auto _e, const auto& _p, const auto& _r, const auto& _n)
             {
                 ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDecoration |
                                             ImGuiWindowFlags_AlwaysAutoResize |
@@ -352,10 +439,10 @@ void PwngClient::updateUI()
                 auto x = _p.x;
                 auto y = _p.y;
 
-                x -= CamX_;
-                y += CamY_;
-                x *= CamZoom_;
-                y *= CamZoom_;
+                x -= Pos.x + Hook.x;
+                y += Pos.y - Hook.y;
+                x *= Zoom.z;
+                y *= Zoom.z;
 
                 ImGui::SetNextWindowPos(ImVec2(int(x+0.5*windowSize().x()), int(-y+0.5*windowSize().y())));
                 ImGui::Begin(_n.n.c_str(), &CloseButton, WindowFlags);
