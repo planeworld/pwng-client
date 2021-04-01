@@ -57,10 +57,6 @@ class PwngClient : public Magnum::Platform::Application
 
         // --- Graphics - Camera ---//
         entt::entity Camera_;
-        // double CamX_{0.0};
-        // double CamY_{0.0};
-        // double CamZoom_{3.0e-9};
-        int    CamHook_{0};
 
         bool RealObjectSizes_{false};
         bool ObjectLabels_{true};

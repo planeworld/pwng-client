@@ -3,6 +3,8 @@ find_package(nlohmann_json 3.2.0 REQUIRED)
 
 set(HEADERS
   managers/network_manager.hpp
+  managers/ui_manager.hpp
+  components.hpp
   message_handler.hpp
   pwng_client.hpp
 )
@@ -10,6 +12,7 @@ set(HEADERS
 set(SOURCES
   ${ImGui_INCLUDE_DIR}/imgui.cpp
   managers/network_manager.cpp
+  managers/ui_manager.cpp
   pwng_client.cpp
 )
 

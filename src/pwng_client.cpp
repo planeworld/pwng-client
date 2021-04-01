@@ -4,8 +4,7 @@
 #include <iostream>
 #include <thread>
 
-// #include <Magnum/GL/Mesh.h>
-// #include <Magnum/GL/Renderer.h>
+#include <Magnum/GL/Renderer.h>
 #include <Magnum/Math/Vector2.h>
 #include <Magnum/MeshTools/Compile.h>
 #include <Magnum/Trade/MeshData.h>
@@ -15,65 +14,19 @@
 #include <entt/entity/registry.hpp>
 #include <nlohmann/json.hpp>
 
-#include <Magnum/GL/Renderer.h>
-
+#include "components.hpp"
 #include "message_handler.hpp"
 #include "network_manager.hpp"
 #include "pwng_client.hpp"
+#include "ui_manager.hpp"
 
 using json = nlohmann::json;
-
-
-struct CircleComponent
-{
-    double r{1.0};
-};
-
-struct HookComponent
-{
-    entt::entity e{entt::null};
-    double x{0.0};
-    double y{0.0};
-};
-
-struct NameComponent
-{
-    std::string n{"Jane Doe"};
-};
-
-struct PositionComponent
-{
-    double x{0.0};
-    double y{0.0};
-};
-
-struct ZoomComponent
-{
-    double z{3.0e-9};
-};
-
-namespace ImGui
-{
-static auto vector_getter = [](void* vec, int idx, const char** out_text)
-{
-    auto& vector = *static_cast<std::vector<std::string>*>(vec);
-    if (idx < 0 || idx >= static_cast<int>(vector.size())) { return false; }
-    *out_text = vector.at(idx).c_str();
-    return true;
-};
-
-bool Combo(const char* label, int* currIndex, std::vector<std::string>& values)
-{
-    if (values.empty()) { return false; }
-    return Combo(label, currIndex, vector_getter,
-        static_cast<void*>(&values), values.size());
-}
-}
 
 PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate}
 {
     Reg_.set<MessageHandler>();
     Reg_.set<NetworkManager>(Reg_);
+    Reg_.set<UIManager>(Reg_, ImGUI_);
 
     auto& Messages = Reg_.ctx<MessageHandler>();
 
@@ -87,7 +40,6 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
 
     Shader_ = Shaders::Flat2D{};
     CircleShape_ = MeshTools::compile(Primitives::circle2DSolid(100));
-
 }
 
 void PwngClient::drawEvent()
@@ -324,68 +276,26 @@ void PwngClient::updateUI()
 
     ImGUI_.newFrame();
     {
+        auto& UI = Reg_.ctx<UIManager>();
         ImGui::Begin("PwNG Desktop Client");
-            ImGui::TextColored(ImVec4(1,1,0,1), "Performance");
-            ImGui::Indent();
-                ImGui::Text("Frame Time:  %.3f ms; (%.1f FPS)",
-                            1000.0/Double(ImGui::GetIO().Framerate), Double(ImGui::GetIO().Framerate));
-            ImGui::Unindent();
+
+            UI.displayPerformance();
 
             ImGui::TextColored(ImVec4(1,1,0,1), "Client control");
             ImGui::Indent();
-                std::string Uri = "ws://localhost:9002/?id=1";
-                if (Network.isConnected())
-                {
-                    if (ImGui::Button("Disconnect")) Network.disconnect();
-                }
-                else
-                {
-                    if (ImGui::Button("Connect")) Network.connect(Uri);
-                }
+                UI.processConnections();
+
                 if (ImGui::Button("Quit Client"))
                 {
                     Network.quit();
                     Platform::Application::Sdl2Application::exit();
                 }
 
-                // If compiled debug, let the user choose debug level to avoid
-                // excessive console spamming
-                DBLK(
-                    static int DebugLevel = 4;
-                    ImGui::Text("Verbosity:");
-                    ImGui::Indent();
-                        ImGui::RadioButton("Info", &DebugLevel, 2);
-                        ImGui::RadioButton("Debug Level 1", &DebugLevel, 3);
-                        ImGui::RadioButton("Debug Level 2", &DebugLevel, 4);
-                        ImGui::RadioButton("Debug Level 3", &DebugLevel, 5);
-                    ImGui::Unindent();
-                    Messages.setLevel(MessageHandler::ReportLevelType(DebugLevel));
-                )
+                UI.processVerbosity();
 
             ImGui::Unindent();
-                ImGui::TextColored(ImVec4(1,1,0,1), "Camera Hooks");
-
-                std::vector<std::string> Names;
-                std::vector<entt::entity> Entities;
-                Names.push_back("None");
-                Entities.push_back(entt::null);
-                Reg_.view<NameComponent>().each(
-                    [&Names, &Entities](auto _e, const auto& _n)
-                    {
-                        Names.push_back(_n.n);
-                        Entities.push_back(_e);
-                    });
-
             ImGui::Indent();
-            if (ImGui::Combo("Select Hook", &CamHook_, Names))
-            {
-                auto& h = Reg_.get<HookComponent>(Camera_);
-                auto& p = Reg_.get<PositionComponent>(Camera_);
-                h.e = Entities[CamHook_];
-                p.x = 0.0;
-                p.y = 0.0;
-                DBLK(Messages.report("prg", "New camera hook on object " + Names[CamHook_], MessageHandler::DEBUG_L1);)
-            }
+                UI.processCameraHooks(Camera_);
             ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Server control");
             ImGui::Indent();
@@ -423,32 +333,7 @@ void PwngClient::updateUI()
         ImGui::End();
         if (ObjectLabels_)
         {
-            auto& Hook = Reg_.get<HookComponent>(Camera_);
-            auto& Pos = Reg_.get<PositionComponent>(Camera_);
-            auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
-            Reg_.view<PositionComponent, CircleComponent, NameComponent>().each([this, &Hook, &Pos, &Zoom](auto _e, const auto& _p, const auto& _r, const auto& _n)
-            {
-                ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDecoration |
-                                            ImGuiWindowFlags_AlwaysAutoResize |
-                                            ImGuiWindowFlags_NoSavedSettings |
-                                            ImGuiWindowFlags_NoFocusOnAppearing |
-                                            ImGuiWindowFlags_NoInputs |
-                                            ImGuiWindowFlags_NoNav |
-                                            ImGuiWindowFlags_NoMove;
-                bool CloseButton{false};
-                auto x = _p.x;
-                auto y = _p.y;
-
-                x -= Pos.x + Hook.x;
-                y += Pos.y - Hook.y;
-                x *= Zoom.z;
-                y *= Zoom.z;
-
-                ImGui::SetNextWindowPos(ImVec2(int(x+0.5*windowSize().x()), int(-y+0.5*windowSize().y())));
-                ImGui::Begin(_n.n.c_str(), &CloseButton, WindowFlags);
-                    ImGui::Text(_n.n.c_str());
-                ImGui::End();
-            });
+            UI.displayObjectLabels(Camera_);
         }
     }
     ImGUI_.drawFrame();
