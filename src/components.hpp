@@ -1,6 +1,11 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
+struct MassComponent
+{
+    double m{1.0};
+};
+
 struct CircleComponent
 {
     double r{1.0};
@@ -19,6 +24,12 @@ struct NameComponent
 };
 
 struct PositionComponent
+{
+    double x{0.0};
+    double y{0.0};
+};
+
+struct VelocityComponent
 {
     double x{0.0};
     double y{0.0};

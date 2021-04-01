@@ -19,14 +19,19 @@ class UIManager
         void displayPerformance();
         void processCameraHooks(entt::entity _Cam);
         void processConnections();
+        void processObjectLabels();
         void processVerbosity();
 
 
     private:
 
         entt::registry& Reg_;
-
         Magnum::ImGuiIntegration::Context& ImGUI_;
+
+        bool Labels_{true};
+        bool LabelsMass_{false};
+        bool LabelsPosition_{false};
+        bool LabelsVelocity_{false};
 };
 
 #endif // UI_MANAGER_HPP

@@ -7,35 +7,44 @@
 
 void UIManager::displayObjectLabels(entt::entity _Cam)
 {
-    auto& Hook = Reg_.get<HookComponent>(_Cam);
-    auto& Pos = Reg_.get<PositionComponent>(_Cam);
-    auto& Zoom = Reg_.get<ZoomComponent>(_Cam);
-    Reg_.view<PositionComponent, CircleComponent, NameComponent>().each([this, &Hook, &Pos, &Zoom](auto _e, const auto& _p, const auto& _r, const auto& _n)
+    if (Labels_)
     {
-        ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDecoration |
-                                       ImGuiWindowFlags_AlwaysAutoResize |
-                                       ImGuiWindowFlags_NoSavedSettings |
-                                       ImGuiWindowFlags_NoFocusOnAppearing |
-                                       ImGuiWindowFlags_NoInputs |
-                                       ImGuiWindowFlags_NoNav |
-                                       ImGuiWindowFlags_NoMove;
-        bool CloseButton{false};
-        auto x = _p.x;
-        auto y = _p.y;
+        auto& Hook = Reg_.get<HookComponent>(_Cam);
+        auto& Pos = Reg_.get<PositionComponent>(_Cam);
+        auto& Zoom = Reg_.get<ZoomComponent>(_Cam);
+        Reg_.view<MassComponent, PositionComponent, VelocityComponent, NameComponent>().each(
+                [this, &Hook, &Pos, &Zoom]
+                (auto _e, const auto& _m, const auto& _p, const auto& _v, const auto& _n)
+        {
+            ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDecoration |
+                                        ImGuiWindowFlags_AlwaysAutoResize |
+                                        ImGuiWindowFlags_NoSavedSettings |
+                                        ImGuiWindowFlags_NoFocusOnAppearing |
+                                        ImGuiWindowFlags_NoInputs |
+                                        ImGuiWindowFlags_NoNav |
+                                        ImGuiWindowFlags_NoMove;
+            bool CloseButton{false};
+            auto x = _p.x;
+            auto y = _p.y;
 
-        x -= Pos.x + Hook.x;
-        y += Pos.y - Hook.y;
-        x *= Zoom.z;
-        y *= Zoom.z;
+            x -= Pos.x + Hook.x;
+            y += Pos.y - Hook.y;
+            x *= Zoom.z;
+            y *= Zoom.z;
 
-        auto ScreenX = ImGui::GetIO().DisplaySize.x;
-        auto ScreenY = ImGui::GetIO().DisplaySize.y;
-        ImGui::SetNextWindowPos(ImVec2(int( x+0.5*ScreenX),
+            double ScreenX = ImGui::GetIO().DisplaySize.x;
+            double ScreenY = ImGui::GetIO().DisplaySize.y;
+            ImGui::SetNextWindowPos(ImVec2(int( x+0.5*ScreenX),
                                         int(-y+0.5*ScreenY)));
-        ImGui::Begin(_n.n.c_str(), &CloseButton, WindowFlags);
-            ImGui::Text(_n.n.c_str());
-        ImGui::End();
-    });
+            ImGui::Begin(_n.n.c_str(), &CloseButton, WindowFlags);
+                ImGui::Text(_n.n.c_str());
+
+                if (LabelsMass_) ImGui::Text("Mass: %.3e kg", _m.m);
+                if (LabelsPosition_) ImGui::Text("Position (raw): (%.2e, %.2e) km", _p.x*1.0e-3, _p.y*1.0e-3);
+                if (LabelsVelocity_) ImGui::Text("Velocity (raw): (%.2e, %.2e) m/s", _p.x, _p.y);
+            ImGui::End();
+        });
+    }
 }
 
 void UIManager::displayPerformance()
@@ -92,6 +101,18 @@ void UIManager::processConnections()
     {
         if (ImGui::Button("Connect")) Network.connect(Uri);
     }
+}
+
+void UIManager::processObjectLabels()
+{
+    ImGui::Indent();
+        ImGui::Checkbox("Object Labels", &Labels_);
+        ImGui::Indent();
+            ImGui::Checkbox("Mass", &LabelsMass_);
+            ImGui::Checkbox("Position", &LabelsPosition_);
+            ImGui::Checkbox("Velocity", &LabelsVelocity_);
+        ImGui::Unindent();
+    ImGui::Unindent();
 }
 
 void UIManager::processVerbosity()

@@ -124,25 +124,32 @@ void PwngClient::getObjectsFromQueue()
         {
 
             std::string s{j["params"]["name"]};
+            double m = j["params"]["m"];
             double x = j["params"]["px"];
             double y = j["params"]["py"];
             double r = j["params"]["r"];
+            double Vx = j["params"]["vx"];
+            double Vy = j["params"]["vy"];
 
             std::uint32_t Id = j["params"]["eid"];
 
             auto ci = Id2EntityMap_.find(Id);
             if (ci != Id2EntityMap_.end())
             {
-                Reg_.replace<PositionComponent>(ci->second, x, y);
                 Reg_.replace<CircleComponent>(ci->second, r);
-                DBLK(Messages.report("prg", "Position updated", MessageHandler::DEBUG_L3);)
+                Reg_.replace<MassComponent>(ci->second, m);
+                Reg_.replace<PositionComponent>(ci->second, x, y);
+                Reg_.replace<VelocityComponent>(ci->second, Vx, Vy);
+                DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
             }
             else
             {
                 auto e = Reg_.create();
-                Reg_.emplace<PositionComponent>(e, x, y);
                 Reg_.emplace<CircleComponent>(e, r);
                 Reg_.emplace<NameComponent>(e, s);
+                Reg_.emplace<MassComponent>(e, m);
+                Reg_.emplace<PositionComponent>(e, x, y);
+                Reg_.emplace<VelocityComponent>(e, Vx, Vy);
                 Id2EntityMap_[Id] = e;
                 DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
             }
@@ -328,13 +335,10 @@ void PwngClient::updateUI()
             ImGui::TextColored(ImVec4(1,1,0,1), "Display");
             ImGui::Indent();
                 ImGui::Checkbox("Real Object Sizes", &RealObjectSizes_);
-                ImGui::Checkbox("Object Labels", &ObjectLabels_);
             ImGui::Unindent();
+            UI.processObjectLabels();
         ImGui::End();
-        if (ObjectLabels_)
-        {
-            UI.displayObjectLabels(Camera_);
-        }
+        UI.displayObjectLabels(Camera_);
     }
     ImGUI_.drawFrame();
 

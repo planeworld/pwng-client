@@ -59,7 +59,6 @@ class PwngClient : public Magnum::Platform::Application
         entt::entity Camera_;
 
         bool RealObjectSizes_{false};
-        bool ObjectLabels_{true};
 
         //--- UI ---//
         Magnum::ImGuiIntegration::Context ImGUI_{Magnum::NoCreate};
