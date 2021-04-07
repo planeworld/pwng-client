@@ -13,7 +13,7 @@
 #include <Magnum/Primitives/Circle.h>
 #include <Magnum/Shaders/Flat.h>
 
-#include "timer.hpp"
+#include "performance_timers.hpp"
 
 using namespace Magnum;
 
@@ -51,6 +51,8 @@ class PwngClient : public Magnum::Platform::Application
 
         void sendJsonRpcMessage(const std::string& _Msg, const std::string& _ID);
 
+        PerformanceTimers Timers_;
+
         //--- Graphics ---//
         std::unordered_map<std::uint32_t, entt::entity> Id2EntityMap_;
         GL::Mesh CircleShape_{NoCreate};
@@ -68,11 +70,6 @@ class PwngClient : public Magnum::Platform::Application
         ImGuiStyle  UIStyleSubStats_;
         ImGuiStyle  UIStyleDefault_;
 
-        struct
-        {
-                Timer ViewportTest;
-                Timer Render;
-        } Timers;
 };
 
 #endif // PWNG_CLIENT_HPP

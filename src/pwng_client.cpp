@@ -51,6 +51,7 @@ void PwngClient::drawEvent()
     this->getObjectsFromQueue();
     this->updateCameraHook();
     this->renderScene();
+
     this->updateUI();
     swapBuffers();
     redraw();
@@ -115,6 +116,7 @@ void PwngClient::viewportEvent(ViewportEvent& Event)
 
 void PwngClient::getObjectsFromQueue()
 {
+    Timers_.Queue.start();
     auto& Messages = Reg_.ctx<MessageHandler>();
 
     std::string Data;
@@ -160,6 +162,8 @@ void PwngClient::getObjectsFromQueue()
             }
         }
     }
+    Timers_.Queue.stop();
+    Timers_.QueueAvg.addValue(Timers_.Queue.elapsed());
 }
 
 void PwngClient::setCameraHook(entt::entity _e)
@@ -191,7 +195,7 @@ void PwngClient::renderScene()
     // Remove all "outside" tags from objects
     // After that, test all objects for camera viewport and tag
     // appropriatly
-    Timers.ViewportTest.start();
+    Timers_.ViewportTest.start();
     Reg_.view<PositionComponent, entt::tag<"is_outside"_hs>>().each(
         [this](auto _e, const auto& _p)
         {
@@ -218,10 +222,10 @@ void PwngClient::renderScene()
                 Reg_.emplace<entt::tag<"is_outside"_hs>>(_e);
             }
         });
-    Timers.ViewportTest.stop();
-    // std::cout << "Viewport: " << ViewportTestTimer.elapsed() << std::endl;
+    Timers_.ViewportTest.stop();
+    Timers_.ViewportTestAvg.addValue(Timers_.ViewportTest.elapsed());
 
-    Timers.Render.start();
+    Timers_.Render.start();
     Reg_.view<PositionComponent, CircleComponent, TemperatureComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
         [this, &Hook, &Pos, &Zoom](auto _e, const auto& _p, const auto& _r, const auto& _t)
     {
@@ -255,8 +259,8 @@ void PwngClient::renderScene()
         Shader_.draw(CircleShape_);
     });
 
-    Timers.Render.stop();
-    // std::cout << "Render: " << RenderTimer.elapsed() << std::endl;
+    Timers_.Render.stop();
+    Timers_.RenderAvg.addValue(Timers_.Render.elapsed());
 }
 
 void PwngClient::setupCamera()
@@ -328,9 +332,7 @@ void PwngClient::updateUI()
         auto& UI = Reg_.ctx<UIManager>();
         ImGui::Begin("PwNG Desktop Client");
 
-            UI.displayPerformance();
-            ImGui::Text("Render (CPU): %.2f ms", Timers.Render.elapsed()*1000.0);
-            ImGui::Text("Viewport Test: %.2f ms", Timers.ViewportTest.elapsed()*1000.0);
+            UI.displayPerformance(Timers_);
 
             ImGui::TextColored(ImVec4(1,1,0,1), "Client control");
             ImGui::Indent();

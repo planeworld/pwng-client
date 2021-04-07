@@ -5,6 +5,7 @@
 #include <Magnum/ImGuiIntegration/Context.hpp>
 
 #include "components.hpp"
+#include "performance_timers.hpp"
 
 class UIManager
 {
@@ -16,7 +17,7 @@ class UIManager
                   Reg_(_Reg), ImGUI_(_ImGUI) {}
 
         void displayObjectLabels(entt::entity _Cam);
-        void displayPerformance();
+        void displayPerformance(PerformanceTimers& _Timers);
         void processCameraHooks(entt::entity _Cam);
         void processConnections();
         void processObjectLabels();

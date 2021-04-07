@@ -4,8 +4,10 @@ find_package(nlohmann_json 3.2.0 REQUIRED)
 set(HEADERS
   managers/network_manager.hpp
   managers/ui_manager.hpp
+  avg_filter.hpp
   components.hpp
   message_handler.hpp
+  performance_timers.hpp
   pwng_client.hpp
   timer.hpp
 )

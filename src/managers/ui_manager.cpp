@@ -47,12 +47,15 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
     }
 }
 
-void UIManager::displayPerformance()
+void UIManager::displayPerformance(PerformanceTimers& _Timers)
 {
     ImGui::TextColored(ImVec4(1,1,0,1), "Performance");
     ImGui::Indent();
         ImGui::Text("Frame Time:  %.3f ms; (%.1f FPS)",
                     1000.0/double(ImGui::GetIO().Framerate), double(ImGui::GetIO().Framerate));
+        ImGui::Text("Process Queue: %.2f ms", _Timers.QueueAvg.getAvg()*1000.0);
+        ImGui::Text("Render (CPU): %.2f ms", _Timers.RenderAvg.getAvg()*1000.0);
+        ImGui::Text("Viewport Test: %.2f ms", _Timers.ViewportTestAvg.getAvg()*1000.0);
     ImGui::Unindent();
 }
 
