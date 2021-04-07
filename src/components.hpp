@@ -29,6 +29,11 @@ struct PositionComponent
     double y{0.0};
 };
 
+struct TemperatureComponent
+{
+    double t{0.0};
+};
+
 struct VelocityComponent
 {
     double x{0.0};

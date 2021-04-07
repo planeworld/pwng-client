@@ -12,7 +12,7 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
         auto& Hook = Reg_.get<HookComponent>(_Cam);
         auto& Pos = Reg_.get<PositionComponent>(_Cam);
         auto& Zoom = Reg_.get<ZoomComponent>(_Cam);
-        Reg_.view<MassComponent, PositionComponent, VelocityComponent, NameComponent>().each(
+        Reg_.view<MassComponent, PositionComponent, VelocityComponent, NameComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
                 [this, &Hook, &Pos, &Zoom]
                 (auto _e, const auto& _m, const auto& _p, const auto& _v, const auto& _n)
         {
@@ -83,13 +83,12 @@ void UIManager::processCameraHooks(entt::entity _Cam)
         h.e = Entities[CamHook];
         p.x = 0.0;
         p.y = 0.0;
-        DBLK(Messages.report("prg", "New camera hook on object " + Names[CamHook], MessageHandler::DEBUG_L1);)
+        DBLK(Messages.report("ui", "New camera hook on object " + Names[CamHook], MessageHandler::DEBUG_L1);)
     }
 }
 
 void UIManager::processConnections()
 {
-    auto& Messages = Reg_.ctx<MessageHandler>();
     auto& Network = Reg_.ctx<NetworkManager>();
 
     std::string Uri = "ws://localhost:9002/?id=1";

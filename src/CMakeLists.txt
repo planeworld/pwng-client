@@ -7,6 +7,7 @@ set(HEADERS
   components.hpp
   message_handler.hpp
   pwng_client.hpp
+  timer.hpp
 )
 
 set(SOURCES

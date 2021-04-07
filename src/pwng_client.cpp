@@ -30,12 +30,14 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
 
     auto& Messages = Reg_.ctx<MessageHandler>();
 
+    Messages.registerSource("net", "net");
     Messages.registerSource("prg", "prg");
+    Messages.registerSource("ui", "ui");
 
     this->setupCamera();
     this->setupWindow();
     this->setupNetwork();
-    setSwapInterval(0);
+    setSwapInterval(1);
     setMinimalLoopPeriod(1.0f/60.0f * 1000.0f);
 
     Shader_ = Shaders::Flat2D{};
@@ -128,6 +130,7 @@ void PwngClient::getObjectsFromQueue()
             double x = j["params"]["px"];
             double y = j["params"]["py"];
             double r = j["params"]["r"];
+            double t = j["params"]["t"];
             double Vx = j["params"]["vx"];
             double Vy = j["params"]["vy"];
 
@@ -139,6 +142,7 @@ void PwngClient::getObjectsFromQueue()
                 Reg_.replace<CircleComponent>(ci->second, r);
                 Reg_.replace<MassComponent>(ci->second, m);
                 Reg_.replace<PositionComponent>(ci->second, x, y);
+                Reg_.replace<TemperatureComponent>(ci->second, t);
                 Reg_.replace<VelocityComponent>(ci->second, Vx, Vy);
                 DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
             }
@@ -149,6 +153,7 @@ void PwngClient::getObjectsFromQueue()
                 Reg_.emplace<NameComponent>(e, s);
                 Reg_.emplace<MassComponent>(e, m);
                 Reg_.emplace<PositionComponent>(e, x, y);
+                Reg_.emplace<TemperatureComponent>(e, t);
                 Reg_.emplace<VelocityComponent>(e, Vx, Vy);
                 Id2EntityMap_[Id] = e;
                 DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
@@ -183,7 +188,42 @@ void PwngClient::renderScene()
     auto& Pos = Reg_.get<PositionComponent>(Camera_);
     auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
 
-    Reg_.view<PositionComponent, CircleComponent>().each([this, &Hook, &Pos, &Zoom](auto _e, const auto& _p, const auto& _r)
+    // Remove all "outside" tags from objects
+    // After that, test all objects for camera viewport and tag
+    // appropriatly
+    Timers.ViewportTest.start();
+    Reg_.view<PositionComponent, entt::tag<"is_outside"_hs>>().each(
+        [this](auto _e, const auto& _p)
+        {
+            Reg_.remove<entt::tag<"is_outside"_hs>>(_e);
+        });
+
+    const double ScreenX = windowSize().x();
+    const double ScreenY = windowSize().y();
+
+    Reg_.view<PositionComponent>().each(
+        [this, &Hook, &Pos, &ScreenX, &ScreenY, &Zoom](auto _e, const auto& _p)
+        {
+            auto x = _p.x;
+            auto y = _p.y;
+
+            x -= Pos.x + Hook.x;
+            y += Pos.y - Hook.y;
+            x *= Zoom.z;
+            y *= Zoom.z;
+
+            if (( x+0.5*ScreenX < 0) || (x >= 0.5*ScreenX) ||
+                (-y+0.5*ScreenY < 0) || (-y >= 0.5*ScreenY))
+            {
+                Reg_.emplace<entt::tag<"is_outside"_hs>>(_e);
+            }
+        });
+    Timers.ViewportTest.stop();
+    // std::cout << "Viewport: " << ViewportTestTimer.elapsed() << std::endl;
+
+    Timers.Render.start();
+    Reg_.view<PositionComponent, CircleComponent, TemperatureComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
+        [this, &Hook, &Pos, &Zoom](auto _e, const auto& _p, const auto& _r, const auto& _t)
     {
         auto x = _p.x;
         auto y = _p.y;
@@ -197,7 +237,7 @@ void PwngClient::renderScene()
         if (RealObjectSizes_)
         {
             r *= Zoom.z;
-            if (r < 0.5) r=0.5;
+            if (r < 2.0) r=2.0;
         }
         else
         {
@@ -210,9 +250,13 @@ void PwngClient::renderScene()
             Matrix3::scaling(Vector2(r, r))
         );
 
-        Shader_.setColor({1.0, 1.0, 1.0});
+        Shader_.setColor({1.0-_t.t/30000.0, 0.0, _t.t/30000.0});
+        // Shader_.setColor({1.0-_t.t/30000.0, 0.0, 0.0});
         Shader_.draw(CircleShape_);
     });
+
+    Timers.Render.stop();
+    // std::cout << "Render: " << RenderTimer.elapsed() << std::endl;
 }
 
 void PwngClient::setupCamera()
@@ -228,8 +272,6 @@ void PwngClient::setupNetwork()
     auto& Messages = Reg_.ctx<MessageHandler>();
     auto& Network = Reg_.ctx<NetworkManager>();
 
-    Messages.registerSource("net", "net");
-    Messages.registerSource("prg", "prg");
     Messages.setColored(true);
     Messages.setLevel(MessageHandler::DEBUG_L3);
 
@@ -287,6 +329,8 @@ void PwngClient::updateUI()
         ImGui::Begin("PwNG Desktop Client");
 
             UI.displayPerformance();
+            ImGui::Text("Render (CPU): %.2f ms", Timers.Render.elapsed()*1000.0);
+            ImGui::Text("Viewport Test: %.2f ms", Timers.ViewportTest.elapsed()*1000.0);
 
             ImGui::TextColored(ImVec4(1,1,0,1), "Client control");
             ImGui::Indent();

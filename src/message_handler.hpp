@@ -77,7 +77,6 @@ class MessageHandler
                         Message << "\033[33m";
                     }
                 }
-
                 if (SourceMap_.count(_Source) == 1)
                 {
                     Message << L << "[ " << SourceMap_[_Source] << " ] " <<  _Message;

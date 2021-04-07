@@ -13,6 +13,8 @@
 #include <Magnum/Primitives/Circle.h>
 #include <Magnum/Shaders/Flat.h>
 
+#include "timer.hpp"
+
 using namespace Magnum;
 
 class PwngClient : public Magnum::Platform::Application
@@ -65,6 +67,12 @@ class PwngClient : public Magnum::Platform::Application
         ImGuiStyle* UIStyle_{nullptr};
         ImGuiStyle  UIStyleSubStats_;
         ImGuiStyle  UIStyleDefault_;
+
+        struct
+        {
+                Timer ViewportTest;
+                Timer Render;
+        } Timers;
 };
 
 #endif // PWNG_CLIENT_HPP
