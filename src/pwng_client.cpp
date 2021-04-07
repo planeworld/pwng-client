@@ -254,7 +254,7 @@ void PwngClient::renderScene()
             Matrix3::scaling(Vector2(r, r))
         );
 
-        Shader_.setColor({1.0-_t.t/30000.0, 0.0, _t.t/30000.0});
+        Shader_.setColor({1.0-_t.t/10000.0, 1.0-_t.t/10000.0, 1.0-_t.t/10000.0});
         // Shader_.setColor({1.0-_t.t/30000.0, 0.0, 0.0});
         Shader_.draw(CircleShape_);
     });
