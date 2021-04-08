@@ -48,7 +48,7 @@ static std::unordered_map<SpectralClassE, std::string> SpectralClassToStringMap{
 {SpectralClassE::G, "G"},
 {SpectralClassE::F, "F"},
 {SpectralClassE::A, "A"},
-{SpectralClassE::G, "B"},
+{SpectralClassE::B, "B"},
 {SpectralClassE::O, "O"}
 };
 
