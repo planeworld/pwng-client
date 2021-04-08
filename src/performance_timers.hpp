@@ -10,9 +10,9 @@ struct PerformanceTimers
     Timer Render;
     Timer ViewportTest;
 
-    AvgFilter<double> QueueAvg{200};
-    AvgFilter<double> RenderAvg{100};
-    AvgFilter<double> ViewportTestAvg{100};
+    AvgFilter<double> QueueAvg{100};
+    AvgFilter<double> RenderAvg{50};
+    AvgFilter<double> ViewportTestAvg{50};
 };
 
 #endif // PERFORMANCE_TIMERS_HPP

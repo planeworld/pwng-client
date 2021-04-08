@@ -12,17 +12,17 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
         auto& Hook = Reg_.get<HookComponent>(_Cam);
         auto& Pos = Reg_.get<PositionComponent>(_Cam);
         auto& Zoom = Reg_.get<ZoomComponent>(_Cam);
-        Reg_.view<MassComponent, PositionComponent, VelocityComponent, NameComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
+        Reg_.view<MassComponent, PositionComponent, VelocityComponent, NameComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
                 [this, &Hook, &Pos, &Zoom]
-                (auto _e, const auto& _m, const auto& _p, const auto& _v, const auto& _n)
+                (auto _e, const auto& _m, const auto& _p, const auto& _v, const auto& _n, const auto& _r, const auto& _s)
         {
-            ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDecoration |
-                                        ImGuiWindowFlags_AlwaysAutoResize |
-                                        ImGuiWindowFlags_NoSavedSettings |
-                                        ImGuiWindowFlags_NoFocusOnAppearing |
-                                        ImGuiWindowFlags_NoInputs |
-                                        ImGuiWindowFlags_NoNav |
-                                        ImGuiWindowFlags_NoMove;
+            ImGuiWindowFlags WindowFlags =  ImGuiWindowFlags_NoDecoration |
+                                            ImGuiWindowFlags_AlwaysAutoResize |
+                                            ImGuiWindowFlags_NoSavedSettings |
+                                            ImGuiWindowFlags_NoFocusOnAppearing |
+                                            ImGuiWindowFlags_NoInputs |
+                                            ImGuiWindowFlags_NoNav |
+                                            ImGuiWindowFlags_NoMove;
             bool CloseButton{false};
             auto x = _p.x;
             auto y = _p.y;
@@ -35,13 +35,21 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
             double ScreenX = ImGui::GetIO().DisplaySize.x;
             double ScreenY = ImGui::GetIO().DisplaySize.y;
             ImGui::SetNextWindowPos(ImVec2(int( x+0.5*ScreenX),
-                                        int(-y+0.5*ScreenY)));
+                                           int(-y+0.5*ScreenY)));
             ImGui::Begin(_n.n.c_str(), &CloseButton, WindowFlags);
-                ImGui::Text(_n.n.c_str());
-
-                if (LabelsMass_) ImGui::Text("Mass: %.3e kg", _m.m);
-                if (LabelsPosition_) ImGui::Text("Position (raw): (%.2e, %.2e) km", _p.x*1.0e-3, _p.y*1.0e-3);
-                if (LabelsVelocity_) ImGui::Text("Velocity (raw): (%.2e, %.2e) m/s", _p.x, _p.y);
+                ImGui::TextColored(ImVec4(0.5, 0.5, 1.0, 1.0), _n.n.c_str());
+                ImGui::Separator();
+                ImGui::Indent();
+                    if (LabelsStarData_)
+                    {
+                        ImGui::Text("Spectral Class: %s", SpectralClassToStringMap[_s.SpectralClass].c_str());
+                        ImGui::Text("Temperature:    %.0f K", _s.Temperature);
+                        ImGui::Text("Radius:         %.2e km", _r.r);
+                    }
+                    if (LabelsMass_ || LabelsStarData_) ImGui::Text("Mass:           %.2e kg", _m.m);
+                    if (LabelsPosition_) ImGui::Text("Position (raw): (%.2e, %.2e) km", _p.x*1.0e-3, _p.y*1.0e-3);
+                    if (LabelsVelocity_) ImGui::Text("Velocity (raw): (%.2e, %.2e) m/s", _p.x, _p.y);
+                ImGui::Unindent();
             ImGui::End();
         });
     }
@@ -113,6 +121,7 @@ void UIManager::processObjectLabels()
             ImGui::Checkbox("Mass", &LabelsMass_);
             ImGui::Checkbox("Position", &LabelsPosition_);
             ImGui::Checkbox("Velocity", &LabelsVelocity_);
+            ImGui::Checkbox("Star Data", &LabelsStarData_);
         ImGui::Unindent();
     ImGui::Unindent();
 }

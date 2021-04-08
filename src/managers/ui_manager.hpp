@@ -32,6 +32,7 @@ class UIManager
         bool Labels_{true};
         bool LabelsMass_{false};
         bool LabelsPosition_{false};
+        bool LabelsStarData_{false};
         bool LabelsVelocity_{false};
 };
 

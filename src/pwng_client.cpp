@@ -132,6 +132,7 @@ void PwngClient::getObjectsFromQueue()
             double x = j["params"]["px"];
             double y = j["params"]["py"];
             double r = j["params"]["r"];
+            int    SC = j["params"]["sc"];
             double t = j["params"]["t"];
             double Vx = j["params"]["vx"];
             double Vy = j["params"]["vy"];
@@ -141,21 +142,21 @@ void PwngClient::getObjectsFromQueue()
             auto ci = Id2EntityMap_.find(Id);
             if (ci != Id2EntityMap_.end())
             {
-                Reg_.replace<CircleComponent>(ci->second, r);
+                Reg_.replace<RadiusComponent>(ci->second, r);
                 Reg_.replace<MassComponent>(ci->second, m);
                 Reg_.replace<PositionComponent>(ci->second, x, y);
-                Reg_.replace<TemperatureComponent>(ci->second, t);
+                Reg_.replace<StarDataComponent>(ci->second, SpectralClassE(SC), t);
                 Reg_.replace<VelocityComponent>(ci->second, Vx, Vy);
                 DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
             }
             else
             {
                 auto e = Reg_.create();
-                Reg_.emplace<CircleComponent>(e, r);
+                Reg_.emplace<RadiusComponent>(e, r);
                 Reg_.emplace<NameComponent>(e, s);
                 Reg_.emplace<MassComponent>(e, m);
                 Reg_.emplace<PositionComponent>(e, x, y);
-                Reg_.emplace<TemperatureComponent>(e, t);
+                Reg_.emplace<StarDataComponent>(e, SpectralClassE(SC), t);
                 Reg_.emplace<VelocityComponent>(e, Vx, Vy);
                 Id2EntityMap_[Id] = e;
                 DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
@@ -226,8 +227,8 @@ void PwngClient::renderScene()
     Timers_.ViewportTestAvg.addValue(Timers_.ViewportTest.elapsed());
 
     Timers_.Render.start();
-    Reg_.view<PositionComponent, CircleComponent, TemperatureComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
-        [this, &Hook, &Pos, &Zoom](auto _e, const auto& _p, const auto& _r, const auto& _t)
+    Reg_.view<PositionComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
+        [this, &Hook, &Pos, &Zoom](auto _e, const auto& _p, const auto& _r, const auto& _s)
     {
         auto x = _p.x;
         auto y = _p.y;
@@ -254,8 +255,8 @@ void PwngClient::renderScene()
             Matrix3::scaling(Vector2(r, r))
         );
 
-        Shader_.setColor({1.0-_t.t/10000.0, 1.0-_t.t/10000.0, 1.0-_t.t/10000.0});
-        // Shader_.setColor({1.0-_t.t/30000.0, 0.0, 0.0});
+        // Shader_.setColor({1.0-_t.t/10000.0, 1.0-_t.t/10000.0, 1.0-_t.t/10000.0});
+        Shader_.setColor({1.0-_s.Temperature/30000.0, 0.0, _s.Temperature/30000.0});
         Shader_.draw(CircleShape_);
     });
 

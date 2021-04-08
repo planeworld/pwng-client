@@ -1,12 +1,15 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
+#include <string>
+#include <unordered_map>
+
 struct MassComponent
 {
     double m{1.0};
 };
 
-struct CircleComponent
+struct RadiusComponent
 {
     double r{1.0};
 };
@@ -29,9 +32,30 @@ struct PositionComponent
     double y{0.0};
 };
 
-struct TemperatureComponent
+enum class SpectralClassE : int
 {
-    double t{0.0};
+    M = 0,
+    K = 1,
+    G = 2,
+    F = 3,
+    A = 4,
+    B = 5,
+    O = 6
+};
+static std::unordered_map<SpectralClassE, std::string> SpectralClassToStringMap{
+{SpectralClassE::M, "M"},
+{SpectralClassE::K, "K"},
+{SpectralClassE::G, "G"},
+{SpectralClassE::F, "F"},
+{SpectralClassE::A, "A"},
+{SpectralClassE::G, "B"},
+{SpectralClassE::O, "O"}
+};
+
+struct StarDataComponent
+{
+    SpectralClassE SpectralClass{SpectralClassE::M};
+    double Temperature{0.0};
 };
 
 struct VelocityComponent
