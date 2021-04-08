@@ -239,15 +239,8 @@ void PwngClient::renderScene()
         y *= Zoom.z;
 
         auto r = _r.r;
-        if (RealObjectSizes_)
-        {
-            r *= Zoom.z;
-            if (r < 2.0) r=2.0;
-        }
-        else
-        {
-            r = r * Zoom.z * 10.0 + 10.0;
-        }
+        r *= Zoom.z * StarsDisplayScaleFactor_;
+        if (r < StarsDisplaySizeMin_) r=StarsDisplaySizeMin_;
 
         Shader_.setTransformationProjectionMatrix(
             Projection_ *
@@ -381,7 +374,8 @@ void PwngClient::updateUI()
             ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Display");
             ImGui::Indent();
-                ImGui::Checkbox("Real Object Sizes", &RealObjectSizes_);
+                ImGui::SliderFloat("Stars: Minimum Display Size", &StarsDisplaySizeMin_, 0.1, 20.0);
+                ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, 100.0);
             ImGui::Unindent();
             UI.processObjectLabels();
         ImGui::End();

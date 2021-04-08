@@ -62,7 +62,8 @@ class PwngClient : public Magnum::Platform::Application
         // --- Graphics - Camera ---//
         entt::entity Camera_;
 
-        bool RealObjectSizes_{false};
+        float StarsDisplaySizeMin_{1.0f};
+        float StarsDisplayScaleFactor_{1.0f};
 
         //--- UI ---//
         Magnum::ImGuiIntegration::Context ImGUI_{Magnum::NoCreate};
