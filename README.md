@@ -4,4 +4,4 @@ Based on my positive experiences with my other project [BattleSub](https://githu
 
 This readme will mainly be populated with information that is client specific. All information concerning the simulation, the application protocol, and the project itself can be found in the [pwng-server](https://github.com/planeworld/pwng-server) repository!
 
-![Very early galaxy representation](screenshots/Screenshot_20210407_201720.png?raw=true)
+![Very early galaxy representation](screenshots/galaxy_2021-04-09.png?raw=true)
