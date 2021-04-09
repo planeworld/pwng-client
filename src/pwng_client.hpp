@@ -13,6 +13,7 @@
 #include <Magnum/Primitives/Circle.h>
 #include <Magnum/Shaders/Flat.h>
 
+#include "color_palette.hpp"
 #include "performance_timers.hpp"
 
 using namespace Magnum;
@@ -59,10 +60,12 @@ class PwngClient : public Magnum::Platform::Application
         Matrix3 Projection_;
         Shaders::Flat2D Shader_{NoCreate};
 
+        ColorPalette TemperaturePalette_;
+
         // --- Graphics - Camera ---//
         entt::entity Camera_;
 
-        float StarsDisplaySizeMin_{1.0f};
+        float StarsDisplaySizeMin_{0.5f};
         float StarsDisplayScaleFactor_{1.0f};
 
         //--- UI ---//

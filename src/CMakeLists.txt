@@ -5,6 +5,7 @@ set(HEADERS
   managers/network_manager.hpp
   managers/ui_manager.hpp
   avg_filter.hpp
+  color_palette.hpp
   components.hpp
   message_handler.hpp
   performance_timers.hpp

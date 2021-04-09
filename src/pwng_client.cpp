@@ -22,7 +22,9 @@
 
 using json = nlohmann::json;
 
-PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate}
+PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate},
+                                                    TemperaturePalette_(Reg_, 256, {0.95, 0.58, 0.26}, {0.47, 0.56, 1.0})
+
 {
     Reg_.set<MessageHandler>();
     Reg_.set<NetworkManager>(Reg_);
@@ -30,6 +32,7 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
 
     auto& Messages = Reg_.ctx<MessageHandler>();
 
+    Messages.registerSource("col", "col");
     Messages.registerSource("net", "net");
     Messages.registerSource("prg", "prg");
     Messages.registerSource("ui", "ui");
@@ -42,6 +45,13 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
 
     Shader_ = Shaders::Flat2D{};
     CircleShape_ = MeshTools::compile(Primitives::circle2DSolid(100));
+
+    TemperaturePalette_.addSupportPoint(0.03, {1.0, 0.8, 0.21});
+    TemperaturePalette_.addSupportPoint(0.11, {1.0, 0.93, 0.27});
+    TemperaturePalette_.addSupportPoint(0.15, {1.0, 0.97, 0.7});
+    TemperaturePalette_.addSupportPoint(0.19, {0.82, 0.92, 1.0});
+    TemperaturePalette_.addSupportPoint(0.42, {0.4, 0.74, 1.0});
+    TemperaturePalette_.buildLuT();
 }
 
 void PwngClient::drawEvent()
@@ -228,7 +238,7 @@ void PwngClient::renderScene()
 
     Timers_.Render.start();
     Reg_.view<PositionComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
-        [this, &Hook, &Pos, &Zoom](auto _e, const auto& _p, const auto& _r, const auto& _s)
+        [&](auto _e, const auto& _p, const auto& _r, const auto& _s)
     {
         auto x = _p.x;
         auto y = _p.y;
@@ -248,8 +258,7 @@ void PwngClient::renderScene()
             Matrix3::scaling(Vector2(r, r))
         );
 
-        // Shader_.setColor({1.0-_t.t/10000.0, 1.0-_t.t/10000.0, 1.0-_t.t/10000.0});
-        Shader_.setColor({1.0-_s.Temperature/30000.0, 0.0, _s.Temperature/30000.0});
+        Shader_.setColor(TemperaturePalette_.getColorClip((_s.Temperature-2000.0)/45000.0));
         Shader_.draw(CircleShape_);
     });
 
@@ -375,7 +384,7 @@ void PwngClient::updateUI()
             ImGui::TextColored(ImVec4(1,1,0,1), "Display");
             ImGui::Indent();
                 ImGui::SliderFloat("Stars: Minimum Display Size", &StarsDisplaySizeMin_, 0.1, 20.0);
-                ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, 100.0);
+                ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, 1.0e10);
             ImGui::Unindent();
             UI.processObjectLabels();
         ImGui::End();
