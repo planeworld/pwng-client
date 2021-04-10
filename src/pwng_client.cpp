@@ -7,6 +7,7 @@
 #include <Magnum/GL/Renderer.h>
 #include <Magnum/Math/Vector2.h>
 #include <Magnum/MeshTools/Compile.h>
+#include <Magnum/Primitives/Line.h>
 #include <Magnum/Trade/MeshData.h>
 
 #include <argagg/argagg.hpp>
@@ -45,6 +46,10 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
 
     Shader_ = Shaders::Flat2D{};
     CircleShape_ = MeshTools::compile(Primitives::circle2DSolid(100));
+    ScaleLineShapeH_ = MeshTools::compile(Primitives::line2D({-1.0, 1.0},
+                                                             { 1.0, 1.0}));
+    ScaleLineShapeV_ = MeshTools::compile(Primitives::line2D({ 1.0, -1.0},
+                                                             { 1.0,  1.0}));
 
     TemperaturePalette_.addSupportPoint(0.03, {1.0, 0.8, 0.21});
     TemperaturePalette_.addSupportPoint(0.11, {1.0, 0.93, 0.27});
@@ -61,6 +66,7 @@ void PwngClient::drawEvent()
     this->getObjectsFromQueue();
     this->updateCameraHook();
     this->renderScene();
+    this->renderScale();
 
     this->updateUI();
     swapBuffers();
@@ -193,6 +199,75 @@ void PwngClient::updateCameraHook()
         h.x = p.x;
         h.y = p.y;
     }
+}
+
+void PwngClient::renderScale()
+{
+    auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
+
+    constexpr double SCALE_BAR_SIZE_MAX = 0.2; // 20% of display width
+
+    double BarLength{1.0};
+    // double Ratio = windowSize().x() * SCALE_BAR_SIZE_MAX / (BarLength*Zoom.z);
+    double Ratio = windowSize().x() * SCALE_BAR_SIZE_MAX / Zoom.z;
+    if (Ratio > 9.46e21)
+    {
+        BarLength = 9.46e21; // One million lightyears
+        ScaleUnit_ = ScaleUnitE::MLY;
+    }
+    else if (Ratio > 9.46e15)
+    {
+        BarLength = 9.46e15; // One lightyear
+        ScaleUnit_ = ScaleUnitE::LY;
+    }
+    else if (Ratio > 1.0e9)
+    {
+        BarLength = 1.0e9;
+        ScaleUnit_ = ScaleUnitE::MKM;
+    }
+    else if (Ratio > 1.0e3)
+    {
+        BarLength = 1.0e3;
+        ScaleUnit_ = ScaleUnitE::KM;
+    }
+    else
+    {
+        BarLength = 1.0;
+        ScaleUnit_ = ScaleUnitE::M;
+    }
+
+    double Scale = windowSize().x() * SCALE_BAR_SIZE_MAX / (BarLength*Zoom.z);
+
+    Scale_ = int(std::log10(Scale));
+
+    Shader_.setTransformationProjectionMatrix(
+        Projection_ * Matrix3::scaling(
+            Vector2(BarLength*0.5*std::pow(10, Scale_)*Zoom.z,
+                    0.5 * windowSize().y() - 10)
+    ));
+
+    Shader_.setColor({0.8, 0.8, 1.0})
+           .draw(ScaleLineShapeH_);
+
+    Shader_.setTransformationProjectionMatrix(
+        Projection_ *
+        Matrix3::translation(
+            Vector2(- BarLength*0.5*std::pow(10, Scale_)*Zoom.z,
+                    0.5 * windowSize().y() - 10)) *
+        Matrix3::scaling(
+            Vector2(1.0, 7.0))
+    );
+    Shader_.draw(ScaleLineShapeV_);
+
+    Shader_.setTransformationProjectionMatrix(
+        Projection_ *
+        Matrix3::translation(
+            Vector2(BarLength*0.5*std::pow(10, Scale_)*Zoom.z,
+                    0.5 * windowSize().y() - 10)) *
+        Matrix3::scaling(
+            Vector2(1.0, 7.0))
+    );
+    Shader_.draw(ScaleLineShapeV_);
 }
 
 void PwngClient::renderScene()
@@ -389,6 +464,28 @@ void PwngClient::updateUI()
             UI.processObjectLabels();
         ImGui::End();
         UI.displayObjectLabels(Camera_);
+        ImGuiWindowFlags WindowFlags =  ImGuiWindowFlags_NoDecoration |
+                                        ImGuiWindowFlags_AlwaysAutoResize |
+                                        ImGuiWindowFlags_NoSavedSettings |
+                                        ImGuiWindowFlags_NoFocusOnAppearing |
+                                        ImGuiWindowFlags_NoInputs |
+                                        ImGuiWindowFlags_NoNav |
+                                        ImGuiWindowFlags_NoMove;
+        bool CloseButton{false};
+        ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2, 40), ImGuiCond_Always, ImVec2(0.5f,0.5f));
+        ImGui::Begin("Scale", &CloseButton, WindowFlags);
+            int l = std::pow(10,Scale_);
+            if (ScaleUnit_ == ScaleUnitE::MLY)
+                ImGui::Text("Scale: %d million ly", l);
+            else if (ScaleUnit_ == ScaleUnitE::LY)
+                ImGui::Text("Scale: %d ly", l);
+            else if (ScaleUnit_ == ScaleUnitE::MKM)
+                ImGui::Text("Scale: %d million km", l);
+            else if (ScaleUnit_ == ScaleUnitE::KM)
+                ImGui::Text("Scale: %d km", l);
+            else if (ScaleUnit_ == ScaleUnitE::M)
+                ImGui::Text("Scale: %d m", l);
+        ImGui::End();
     }
     ImGUI_.drawFrame();
 

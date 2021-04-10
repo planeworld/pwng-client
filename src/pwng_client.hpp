@@ -42,6 +42,7 @@ class PwngClient : public Magnum::Platform::Application
         void viewportEvent(ViewportEvent& Event) override;
 
         void getObjectsFromQueue();
+        void renderScale();
         void renderScene();
         void setCameraHook(entt::entity _e);
         void setupCamera();
@@ -56,11 +57,25 @@ class PwngClient : public Magnum::Platform::Application
 
         //--- Graphics ---//
         std::unordered_map<std::uint32_t, entt::entity> Id2EntityMap_;
+
         GL::Mesh CircleShape_{NoCreate};
+        GL::Mesh ScaleLineShapeH_{NoCreate};
+        GL::Mesh ScaleLineShapeV_{NoCreate};
         Matrix3 Projection_;
         Shaders::Flat2D Shader_{NoCreate};
 
         ColorPalette TemperaturePalette_;
+        int Scale_{0};
+
+        enum class ScaleUnitE
+        {
+            MLY,
+            LY,
+            MKM,
+            KM,
+            M
+        };
+        ScaleUnitE ScaleUnit_{ScaleUnitE::LY};
 
         // --- Graphics - Camera ---//
         entt::entity Camera_;

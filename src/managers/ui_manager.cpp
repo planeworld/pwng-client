@@ -44,7 +44,7 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
                     {
                         ImGui::Text("Spectral Class: %s", SpectralClassToStringMap[_s.SpectralClass].c_str());
                         ImGui::Text("Temperature:    %.0f K", _s.Temperature);
-                        ImGui::Text("Radius:         %.2e km", _r.r);
+                        ImGui::Text("Radius:         %.2e km", _r.r*1.0e-3);
                     }
                     if (LabelsMass_ || LabelsStarData_) ImGui::Text("Mass:           %.2e kg", _m.m);
                     if (LabelsPosition_) ImGui::Text("Position (raw): (%.2e, %.2e) km", _p.x*1.0e-3, _p.y*1.0e-3);
