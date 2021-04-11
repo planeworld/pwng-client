@@ -41,22 +41,9 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
     this->setupCamera();
     this->setupWindow();
     this->setupNetwork();
+    this->setupGraphics();
     setSwapInterval(1);
     setMinimalLoopPeriod(1.0f/60.0f * 1000.0f);
-
-    Shader_ = Shaders::Flat2D{};
-    CircleShape_ = MeshTools::compile(Primitives::circle2DSolid(100));
-    ScaleLineShapeH_ = MeshTools::compile(Primitives::line2D({-1.0, 1.0},
-                                                             { 1.0, 1.0}));
-    ScaleLineShapeV_ = MeshTools::compile(Primitives::line2D({ 1.0, -1.0},
-                                                             { 1.0,  1.0}));
-
-    TemperaturePalette_.addSupportPoint(0.03, {1.0, 0.8, 0.21});
-    TemperaturePalette_.addSupportPoint(0.11, {1.0, 0.93, 0.27});
-    TemperaturePalette_.addSupportPoint(0.15, {1.0, 0.97, 0.7});
-    TemperaturePalette_.addSupportPoint(0.19, {0.82, 0.92, 1.0});
-    TemperaturePalette_.addSupportPoint(0.42, {0.4, 0.74, 1.0});
-    TemperaturePalette_.buildLuT();
 }
 
 void PwngClient::drawEvent()
@@ -347,6 +334,23 @@ void PwngClient::setupCamera()
     Reg_.emplace<HookComponent>(Camera_);
     Reg_.emplace<PositionComponent>(Camera_);
     Reg_.emplace<ZoomComponent>(Camera_);
+}
+
+void PwngClient::setupGraphics()
+{
+    Shader_ = Shaders::Flat2D{};
+    CircleShape_ = MeshTools::compile(Primitives::circle2DSolid(100));
+    ScaleLineShapeH_ = MeshTools::compile(Primitives::line2D({-1.0, 1.0},
+                                                             { 1.0, 1.0}));
+    ScaleLineShapeV_ = MeshTools::compile(Primitives::line2D({ 1.0, -1.0},
+                                                             { 1.0,  1.0}));
+
+    TemperaturePalette_.addSupportPoint(0.03, {1.0, 0.8, 0.21});
+    TemperaturePalette_.addSupportPoint(0.11, {1.0, 0.93, 0.27});
+    TemperaturePalette_.addSupportPoint(0.15, {1.0, 0.97, 0.7});
+    TemperaturePalette_.addSupportPoint(0.19, {0.82, 0.92, 1.0});
+    TemperaturePalette_.addSupportPoint(0.42, {0.4, 0.74, 1.0});
+    TemperaturePalette_.buildLuT();
 }
 
 void PwngClient::setupNetwork()

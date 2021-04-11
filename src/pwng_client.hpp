@@ -45,8 +45,9 @@ class PwngClient : public Magnum::Platform::Application
         void renderScale();
         void renderScene();
         void setCameraHook(entt::entity _e);
-        void setupCamera();
         void updateCameraHook();
+        void setupCamera();
+        void setupGraphics();
         void setupNetwork();
         void setupWindow();
         void updateUI();
