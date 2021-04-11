@@ -13,6 +13,8 @@
 #include <websocketpp/config/asio_no_tls_client.hpp>
 #include <websocketpp/client.hpp>
 
+#include "avg_filter.hpp"
+
 class NetworkManager
 {
 
@@ -21,6 +23,8 @@ class NetworkManager
         typedef websocketpp::client<websocketpp::config::asio_client> ClientType;
 
         NetworkManager(entt::registry& _Reg) : Reg_(_Reg) {}
+
+        double getFrameTime() const {return TimerNetwork_.getAvg();}
 
         bool isConnected() const {return IsConnected_;}
         bool isRunning() const {return IsRunning_;}
@@ -47,6 +51,9 @@ class NetworkManager
 
         moodycamel::ConcurrentQueue<std::string>* InputQueue_;
         moodycamel::ConcurrentQueue<std::string>* OutputQueue_;
+
+        std::uint32_t NetworkingStepSize_{10};
+        AvgFilter<double> TimerNetwork_{50};
 
         ClientType Client_;
         websocketpp::connection_hdl Connection_;
