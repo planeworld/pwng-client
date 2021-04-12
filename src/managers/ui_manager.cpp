@@ -58,12 +58,19 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
 void UIManager::displayPerformance(PerformanceTimers& _Timers)
 {
     ImGui::TextColored(ImVec4(1,1,0,1), "Performance");
+    ImGui::Text("Client:");
     ImGui::Indent();
         ImGui::Text("Frame Time:  %.3f ms; (%.1f FPS)",
                     1000.0/double(ImGui::GetIO().Framerate), double(ImGui::GetIO().Framerate));
-        ImGui::Text("Process Queue: %.2f ms", _Timers.QueueAvg.getAvg()*1000.0);
-        ImGui::Text("Render (CPU): %.2f ms", _Timers.RenderAvg.getAvg()*1000.0);
-        ImGui::Text("Viewport Test: %.2f ms", _Timers.ViewportTestAvg.getAvg()*1000.0);
+        ImGui::Text("Process Queue: %.2f ms", _Timers.QueueAvg.getAvg_ms());
+        ImGui::Text("Render (CPU): %.2f ms", _Timers.RenderAvg.getAvg_ms());
+        ImGui::Text("Viewport Test: %.2f ms", _Timers.ViewportTestAvg.getAvg_ms());
+    ImGui::Unindent();
+    ImGui::Text("Server:");
+    ImGui::Indent();
+        ImGui::Text("Sim:  %.2f ms", _Timers.ServerSimFrameTimeAvg.getAvg_ms());
+        ImGui::Text("- Queue Out:  %.2f ms", _Timers.ServerQueueOutFrameTimeAvg.getAvg_ms());
+        ImGui::Text("- Physics:  %.2f ms", _Timers.ServerPhysicsFrameTimeAvg.getAvg_ms());
     ImGui::Unindent();
 }
 

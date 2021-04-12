@@ -165,6 +165,12 @@ void PwngClient::getObjectsFromQueue()
                 DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
             }
         }
+        else if (j["method"] == "sim_stats")
+        {
+            Timers_.ServerPhysicsFrameTimeAvg.addValue(j["params"]["t_phy"]);
+            Timers_.ServerQueueOutFrameTimeAvg.addValue(j["params"]["t_queue_out"]);
+            Timers_.ServerSimFrameTimeAvg.addValue(j["params"]["t_sim"]);
+        }
     }
     Timers_.Queue.stop();
     Timers_.QueueAvg.addValue(Timers_.Queue.elapsed());
@@ -446,6 +452,10 @@ void PwngClient::updateUI()
                 if (ImGui::Button("Send"))
                 {
                     this->sendJsonRpcMessage(Msg, Id);
+                }
+                if (ImGui::Button("Get Static Galaxy Data"))
+                {
+                    this->sendJsonRpcMessage("get_data", "c000");
                 }
                 if (ImGui::Button("Start Simulation"))
                 {

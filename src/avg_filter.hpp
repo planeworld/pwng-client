@@ -29,7 +29,19 @@ class AvgFilter
         T getAvg() const
         {
             T Avg = std::accumulate(Values_.cbegin(), Values_.cend(), 0.0);
-            return Avg / Values_.size();
+            if (Values_.size() > 0)
+                return Avg / Values_.size();
+            else
+                return 0;
+        }
+
+        T getAvg_ms() const
+        {
+            T Avg = std::accumulate(Values_.cbegin(), Values_.cend(), 0.0);
+            if (Values_.size() > 0)
+                return 1000.0*Avg / Values_.size();
+            else
+                return 0;
         }
         
     private:

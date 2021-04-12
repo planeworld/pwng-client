@@ -13,6 +13,10 @@ struct PerformanceTimers
     AvgFilter<double> QueueAvg{100};
     AvgFilter<double> RenderAvg{50};
     AvgFilter<double> ViewportTestAvg{50};
+
+    AvgFilter<double> ServerPhysicsFrameTimeAvg{50};
+    AvgFilter<double> ServerQueueOutFrameTimeAvg{50};
+    AvgFilter<double> ServerSimFrameTimeAvg{50};
 };
 
 #endif // PERFORMANCE_TIMERS_HPP
