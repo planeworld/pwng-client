@@ -12,9 +12,9 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
         auto& Hook = Reg_.get<HookComponent>(_Cam);
         auto& Pos = Reg_.get<PositionComponent>(_Cam);
         auto& Zoom = Reg_.get<ZoomComponent>(_Cam);
-        Reg_.view<MassComponent, PositionComponent, VelocityComponent, NameComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
+        Reg_.view<MassComponent, PositionComponent, NameComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
                 [this, &Hook, &Pos, &Zoom]
-                (auto _e, const auto& _m, const auto& _p, const auto& _v, const auto& _n, const auto& _r, const auto& _s)
+                (auto _e, const auto& _m, const auto& _p, const auto& _n, const auto& _r, const auto& _s)
         {
             ImGuiWindowFlags WindowFlags =  ImGuiWindowFlags_NoDecoration |
                                             ImGuiWindowFlags_AlwaysAutoResize |
@@ -48,7 +48,6 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
                     }
                     if (LabelsMass_ || LabelsStarData_) ImGui::Text("Mass:           %.2e kg", _m.m);
                     if (LabelsPosition_) ImGui::Text("Position (raw): (%.2e, %.2e) km", _p.x*1.0e-3, _p.y*1.0e-3);
-                    if (LabelsVelocity_) ImGui::Text("Velocity (raw): (%.2e, %.2e) m/s", _p.x, _p.y);
                 ImGui::Unindent();
             ImGui::End();
         });

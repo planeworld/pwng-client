@@ -127,7 +127,7 @@ void PwngClient::getObjectsFromQueue()
     {
         json j = json::parse(Data);
 
-        if (j["method"] == "sim_broadcast")
+        if (j["method"] == "galaxy_data")
         {
 
             std::string s{j["params"]["name"]};
@@ -137,8 +137,6 @@ void PwngClient::getObjectsFromQueue()
             double r = j["params"]["r"];
             int    SC = j["params"]["sc"];
             double t = j["params"]["t"];
-            double Vx = j["params"]["vx"];
-            double Vy = j["params"]["vy"];
 
             std::uint32_t Id = j["params"]["eid"];
 
@@ -149,7 +147,6 @@ void PwngClient::getObjectsFromQueue()
                 Reg_.replace<MassComponent>(ci->second, m);
                 Reg_.replace<PositionComponent>(ci->second, x, y);
                 Reg_.replace<StarDataComponent>(ci->second, SpectralClassE(SC), t);
-                Reg_.replace<VelocityComponent>(ci->second, Vx, Vy);
                 DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
             }
             else
@@ -160,7 +157,6 @@ void PwngClient::getObjectsFromQueue()
                 Reg_.emplace<MassComponent>(e, m);
                 Reg_.emplace<PositionComponent>(e, x, y);
                 Reg_.emplace<StarDataComponent>(e, SpectralClassE(SC), t);
-                Reg_.emplace<VelocityComponent>(e, Vx, Vy);
                 Id2EntityMap_[Id] = e;
                 DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
             }
