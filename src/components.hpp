@@ -32,6 +32,12 @@ struct PositionComponent
     double y{0.0};
 };
 
+struct SystemPositionComponent
+{
+    double x{0.0};
+    double y{0.0};
+};
+
 enum class SpectralClassE : int
 {
     M = 0,
@@ -66,7 +72,7 @@ struct VelocityComponent
 
 struct ZoomComponent
 {
-    double z{3.0e-9};
+    double z{1.0e-20};
 };
 
 #endif // COMPONENTS_HPP

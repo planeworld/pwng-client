@@ -10,7 +10,7 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
     if (Labels_)
     {
         auto& Hook = Reg_.get<HookComponent>(_Cam);
-        auto& Pos = Reg_.get<PositionComponent>(_Cam);
+        auto& Pos = Reg_.get<SystemPositionComponent>(_Cam);
         auto& Zoom = Reg_.get<ZoomComponent>(_Cam);
         Reg_.view<MassComponent, PositionComponent, NameComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
                 [this, &Hook, &Pos, &Zoom]
@@ -96,7 +96,7 @@ void UIManager::processCameraHooks(entt::entity _Cam)
         auto& Messages = Reg_.ctx<MessageHandler>();
 
         auto& h = Reg_.get<HookComponent>(_Cam);
-        auto& p = Reg_.get<PositionComponent>(_Cam);
+        auto& p = Reg_.get<SystemPositionComponent>(_Cam);
         h.e = Entities[CamHook];
         p.x = 0.0;
         p.y = 0.0;

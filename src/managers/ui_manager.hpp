@@ -29,7 +29,7 @@ class UIManager
         entt::registry& Reg_;
         Magnum::ImGuiIntegration::Context& ImGUI_;
 
-        bool Labels_{true};
+        bool Labels_{false};
         bool LabelsMass_{false};
         bool LabelsPosition_{false};
         bool LabelsStarData_{false};

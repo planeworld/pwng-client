@@ -76,12 +76,14 @@ void PwngClient::mouseMoveEvent(MouseMoveEvent& Event)
     {
         if (Event.modifiers() & MouseMoveEvent::Modifier::Ctrl)
         {
-            auto& Pos = Reg_.get<PositionComponent>(Camera_);
+            auto& Pos = Reg_.get<SystemPositionComponent>(Camera_);
             auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
             if (Event.modifiers() & MouseMoveEvent::Modifier::Shift)
             {
                 if (Zoom.z - 0.01*Event.relativePosition().y()*Zoom.z > 0.0)
                     Zoom.z -= 0.01*Event.relativePosition().y()*Zoom.z;
+                if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
+                else if (Zoom.z > 100.0) Zoom.z = 100.0;
             }
             else
             {
@@ -132,8 +134,8 @@ void PwngClient::getObjectsFromQueue()
 
             std::string s{j["params"]["name"]};
             double m = j["params"]["m"];
-            double x = j["params"]["px"];
-            double y = j["params"]["py"];
+            double x = j["params"]["spx"];
+            double y = j["params"]["spy"];
             double r = j["params"]["r"];
             int    SC = j["params"]["sc"];
             double t = j["params"]["t"];
@@ -144,8 +146,9 @@ void PwngClient::getObjectsFromQueue()
             if (ci != Id2EntityMap_.end())
             {
                 Reg_.replace<RadiusComponent>(ci->second, r);
+                Reg_.replace<NameComponent>(ci->second, s);
                 Reg_.replace<MassComponent>(ci->second, m);
-                Reg_.replace<PositionComponent>(ci->second, x, y);
+                Reg_.replace<SystemPositionComponent>(ci->second, x, y);
                 Reg_.replace<StarDataComponent>(ci->second, SpectralClassE(SC), t);
                 DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
             }
@@ -155,8 +158,42 @@ void PwngClient::getObjectsFromQueue()
                 Reg_.emplace<RadiusComponent>(e, r);
                 Reg_.emplace<NameComponent>(e, s);
                 Reg_.emplace<MassComponent>(e, m);
-                Reg_.emplace<PositionComponent>(e, x, y);
+                Reg_.emplace<SystemPositionComponent>(e, x, y);
                 Reg_.emplace<StarDataComponent>(e, SpectralClassE(SC), t);
+                Id2EntityMap_[Id] = e;
+                DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
+            }
+        }
+        if (j["method"] == "bc_dynamic_data")
+        {
+            std::string s{j["params"]["name"]};
+            double m = j["params"]["m"];
+            double spx = j["params"]["spx"];
+            double spy = j["params"]["spy"];
+            double px = j["params"]["px"];
+            double py = j["params"]["py"];
+            double r = j["params"]["r"];
+
+            std::uint32_t Id = j["params"]["eid"];
+
+            auto ci = Id2EntityMap_.find(Id);
+            if (ci != Id2EntityMap_.end())
+            {
+                Reg_.replace<NameComponent>(ci->second, s);
+                Reg_.replace<MassComponent>(ci->second, m);
+                Reg_.replace<PositionComponent>(ci->second, px, py);
+                Reg_.replace<RadiusComponent>(ci->second, r);
+                Reg_.replace<SystemPositionComponent>(ci->second, spx, spy);
+                DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
+            }
+            else
+            {
+                auto e = Reg_.create();
+                Reg_.emplace<NameComponent>(e, s);
+                Reg_.emplace<MassComponent>(e, m);
+                Reg_.emplace<PositionComponent>(e, px, py);
+                Reg_.emplace<RadiusComponent>(e, r);
+                Reg_.emplace<SystemPositionComponent>(e, spx, spy);
                 Id2EntityMap_[Id] = e;
                 DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
             }
@@ -184,7 +221,7 @@ void PwngClient::updateCameraHook()
 
     if (Reg_.valid(h.e))
     {
-        auto& p = Reg_.get<PositionComponent>(h.e);
+        auto& p = Reg_.get<SystemPositionComponent>(h.e);
         h.x = p.x;
         h.y = p.y;
     }
@@ -264,14 +301,14 @@ void PwngClient::renderScene()
     GL::defaultFramebuffer.setViewport({{}, windowSize()});
 
     auto& Hook = Reg_.get<HookComponent>(Camera_);
-    auto& Pos = Reg_.get<PositionComponent>(Camera_);
+    auto& Pos = Reg_.get<SystemPositionComponent>(Camera_);
     auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
 
     // Remove all "outside" tags from objects
     // After that, test all objects for camera viewport and tag
     // appropriatly
     Timers_.ViewportTest.start();
-    Reg_.view<PositionComponent, entt::tag<"is_outside"_hs>>().each(
+    Reg_.view<SystemPositionComponent, entt::tag<"is_outside"_hs>>().each(
         [this](auto _e, const auto& _p)
         {
             Reg_.remove<entt::tag<"is_outside"_hs>>(_e);
@@ -280,7 +317,7 @@ void PwngClient::renderScene()
     const double ScreenX = windowSize().x();
     const double ScreenY = windowSize().y();
 
-    Reg_.view<PositionComponent>().each(
+    Reg_.view<SystemPositionComponent>().each(
         [this, &Hook, &Pos, &ScreenX, &ScreenY, &Zoom](auto _e, const auto& _p)
         {
             auto x = _p.x;
@@ -288,6 +325,16 @@ void PwngClient::renderScene()
 
             x -= Pos.x + Hook.x;
             y += Pos.y - Hook.y;
+
+            // std::cout << "PRE_LOCAL" << std::endl;
+            // const PositionComponent* PosLocal = Reg_.try_get<PositionComponent>(_e);
+            // if (PosLocal != nullptr)
+            // {
+            //     std::cout << "LOCAL" << std::endl;
+            //     x -= PosLocal->x;
+            //     y += PosLocal->y;
+            // }
+
             x *= Zoom.z;
             y *= Zoom.z;
 
@@ -301,7 +348,7 @@ void PwngClient::renderScene()
     Timers_.ViewportTestAvg.addValue(Timers_.ViewportTest.elapsed());
 
     Timers_.Render.start();
-    Reg_.view<PositionComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
+    Reg_.view<SystemPositionComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
         [&](auto _e, const auto& _p, const auto& _r, const auto& _s)
     {
         auto x = _p.x;
@@ -326,6 +373,32 @@ void PwngClient::renderScene()
         Shader_.draw(CircleShape_);
     });
 
+    Reg_.view<SystemPositionComponent, RadiusComponent, PositionComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
+        [&](auto _e, const auto& _sp, const auto& _r, const auto& _p)
+    {
+        auto x = _sp.x;
+        auto y = _sp.y;
+
+        x -= Pos.x + Hook.x;
+        y += Pos.y - Hook.y;
+        x -= _p.x;
+        y += _p.y;
+        x *= Zoom.z;
+        y *= Zoom.z;
+
+        auto r = _r.r;
+        r *= Zoom.z * StarsDisplayScaleFactor_;
+        if (r < StarsDisplaySizeMin_) r=StarsDisplaySizeMin_;
+
+        Shader_.setTransformationProjectionMatrix(
+            Projection_ *
+            Matrix3::translation(Vector2(x, y)) *
+            Matrix3::scaling(Vector2(r, r))
+        );
+
+        Shader_.draw(CircleShape_);
+    });
+
     Timers_.Render.stop();
     Timers_.RenderAvg.addValue(Timers_.Render.elapsed());
 }
@@ -334,7 +407,7 @@ void PwngClient::setupCamera()
 {
     Camera_ = Reg_.create();
     Reg_.emplace<HookComponent>(Camera_);
-    Reg_.emplace<PositionComponent>(Camera_);
+    Reg_.emplace<SystemPositionComponent>(Camera_);
     Reg_.emplace<ZoomComponent>(Camera_);
 }
 
@@ -453,23 +526,29 @@ void PwngClient::updateUI()
                 {
                     this->sendJsonRpcMessage("get_data", "c000");
                 }
+                if (ImGui::Button("Subscribe: Dynamic Data"))
+                {
+                    this->sendJsonRpcMessage("sub_dynamic_data", "c001");
+                }
                 if (ImGui::Button("Start Simulation"))
                 {
-                    this->sendJsonRpcMessage("start_simulation", "c001");
+                    this->sendJsonRpcMessage("start_simulation", "c002");
                 }
                 if (ImGui::Button("Stop Simulation"))
                 {
-                    this->sendJsonRpcMessage("stop_simulation", "c001");
+                    this->sendJsonRpcMessage("stop_simulation", "c003");
                 }
                 if (ImGui::Button("Shutdown Server"))
                 {
-                    this->sendJsonRpcMessage("shutdown", "c0002");
+                    this->sendJsonRpcMessage("shutdown", "c0004");
                 }
             ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Display");
             ImGui::Indent();
+                auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
                 ImGui::SliderFloat("Stars: Minimum Display Size", &StarsDisplaySizeMin_, 0.1, 20.0);
-                ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, 1.0e10);
+                ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, std::max(5.0, std::min(1.0e-7/Zoom.z, 1.0e11)));
+                if (StarsDisplayScaleFactor_ >  1.0e-7/Zoom.z) StarsDisplayScaleFactor_= 1.0e-7/Zoom.z;
             ImGui::Unindent();
             UI.processObjectLabels();
         ImGui::End();
@@ -482,6 +561,7 @@ void PwngClient::updateUI()
                                         ImGuiWindowFlags_NoNav |
                                         ImGuiWindowFlags_NoMove;
         bool CloseButton{false};
+
         ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2, 40), ImGuiCond_Always, ImVec2(0.5f,0.5f));
         ImGui::Begin("Scale", &CloseButton, WindowFlags);
             int l = std::pow(10,Scale_);
