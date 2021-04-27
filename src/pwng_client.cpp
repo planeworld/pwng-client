@@ -551,6 +551,7 @@ void PwngClient::updateUI()
                 // ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, std::max(5.0, std::min(1.0e-7/Zoom.z, 1.0e11)));
                 ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, std::clamp(1.0e-7/Zoom.z, 5.0, 1.0e11));
                 if (StarsDisplayScaleFactor_ >  1.0e-7/Zoom.z) StarsDisplayScaleFactor_= 1.0e-7/Zoom.z;
+                if (StarsDisplayScaleFactor_ <  1.0) StarsDisplayScaleFactor_= 1.0;
             ImGui::Unindent();
             UI.processObjectLabels();
         ImGui::End();

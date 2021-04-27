@@ -12,7 +12,7 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
         auto& Hook = Reg_.get<HookComponent>(_Cam);
         auto& Pos = Reg_.get<SystemPositionComponent>(_Cam);
         auto& Zoom = Reg_.get<ZoomComponent>(_Cam);
-        Reg_.view<MassComponent, PositionComponent, NameComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
+        Reg_.view<MassComponent, SystemPositionComponent, NameComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
                 [this, &Hook, &Pos, &Zoom]
                 (auto _e, const auto& _m, const auto& _p, const auto& _n, const auto& _r, const auto& _s)
         {
