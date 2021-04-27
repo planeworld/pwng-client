@@ -13,15 +13,15 @@
 #include <argagg/argagg.hpp>
 #include <concurrentqueue/concurrentqueue.h>
 #include <entt/entity/registry.hpp>
-#include <nlohmann/json.hpp>
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 #include "components.hpp"
 #include "message_handler.hpp"
 #include "network_manager.hpp"
 #include "pwng_client.hpp"
 #include "ui_manager.hpp"
-
-using json = nlohmann::json;
 
 PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate},
                                                     TemperaturePalette_(Reg_, 256, {0.95, 0.58, 0.26}, {0.47, 0.56, 1.0})
@@ -127,26 +127,27 @@ void PwngClient::getObjectsFromQueue()
     std::string Data;
     while (InputQueue_.try_dequeue(Data))
     {
-        json j = json::parse(Data);
+        rapidjson::Document j;
+        j.Parse(Data.c_str());
 
         if (j["method"] == "galaxy_data")
         {
 
-            std::string s{j["params"]["name"]};
-            double m = j["params"]["m"];
-            double x = j["params"]["spx"];
-            double y = j["params"]["spy"];
-            double r = j["params"]["r"];
-            int    SC = j["params"]["sc"];
-            double t = j["params"]["t"];
+            std::string n = j["params"]["name"].GetString();
+            double      m = j["params"]["m"].GetDouble();
+            double      x = j["params"]["spx"].GetDouble();
+            double      y = j["params"]["spy"].GetDouble();
+            double      r = j["params"]["r"].GetDouble();
+            int        SC = j["params"]["sc"].GetInt();
+            double      t = j["params"]["t"].GetDouble();
 
-            std::uint32_t Id = j["params"]["eid"];
+            entt::id_type Id = j["params"]["eid"].GetInt();
 
             auto ci = Id2EntityMap_.find(Id);
             if (ci != Id2EntityMap_.end())
             {
                 Reg_.replace<RadiusComponent>(ci->second, r);
-                Reg_.replace<NameComponent>(ci->second, s);
+                Reg_.replace<NameComponent>(ci->second, n);
                 Reg_.replace<MassComponent>(ci->second, m);
                 Reg_.replace<SystemPositionComponent>(ci->second, x, y);
                 Reg_.replace<StarDataComponent>(ci->second, SpectralClassE(SC), t);
@@ -156,7 +157,7 @@ void PwngClient::getObjectsFromQueue()
             {
                 auto e = Reg_.create();
                 Reg_.emplace<RadiusComponent>(e, r);
-                Reg_.emplace<NameComponent>(e, s);
+                Reg_.emplace<NameComponent>(e, n);
                 Reg_.emplace<MassComponent>(e, m);
                 Reg_.emplace<SystemPositionComponent>(e, x, y);
                 Reg_.emplace<StarDataComponent>(e, SpectralClassE(SC), t);
@@ -166,20 +167,20 @@ void PwngClient::getObjectsFromQueue()
         }
         if (j["method"] == "bc_dynamic_data")
         {
-            std::string s{j["params"]["name"]};
-            double m = j["params"]["m"];
-            double spx = j["params"]["spx"];
-            double spy = j["params"]["spy"];
-            double px = j["params"]["px"];
-            double py = j["params"]["py"];
-            double r = j["params"]["r"];
+            std::string n = j["params"]["name"].GetString();
+            double      m = j["params"]["m"].GetDouble();
+            double    spx = j["params"]["spx"].GetDouble();
+            double    spy = j["params"]["spy"].GetDouble();
+            double     px = j["params"]["px"].GetDouble();
+            double     py = j["params"]["py"].GetDouble();
+            double      r = j["params"]["r"].GetDouble();
 
-            std::uint32_t Id = j["params"]["eid"];
+            entt::id_type Id = j["params"]["eid"].GetInt();
 
             auto ci = Id2EntityMap_.find(Id);
             if (ci != Id2EntityMap_.end())
             {
-                Reg_.replace<NameComponent>(ci->second, s);
+                Reg_.replace<NameComponent>(ci->second, n);
                 Reg_.replace<MassComponent>(ci->second, m);
                 Reg_.replace<PositionComponent>(ci->second, px, py);
                 Reg_.replace<RadiusComponent>(ci->second, r);
@@ -189,7 +190,7 @@ void PwngClient::getObjectsFromQueue()
             else
             {
                 auto e = Reg_.create();
-                Reg_.emplace<NameComponent>(e, s);
+                Reg_.emplace<NameComponent>(e, n);
                 Reg_.emplace<MassComponent>(e, m);
                 Reg_.emplace<PositionComponent>(e, px, py);
                 Reg_.emplace<RadiusComponent>(e, r);
@@ -200,9 +201,9 @@ void PwngClient::getObjectsFromQueue()
         }
         else if (j["method"] == "sim_stats")
         {
-            Timers_.ServerPhysicsFrameTimeAvg.addValue(j["params"]["t_phy"]);
-            Timers_.ServerQueueOutFrameTimeAvg.addValue(j["params"]["t_queue_out"]);
-            Timers_.ServerSimFrameTimeAvg.addValue(j["params"]["t_sim"]);
+            Timers_.ServerPhysicsFrameTimeAvg.addValue(j["params"]["t_phy"].GetDouble());
+            Timers_.ServerQueueOutFrameTimeAvg.addValue(j["params"]["t_queue_out"].GetDouble());
+            Timers_.ServerSimFrameTimeAvg.addValue(j["params"]["t_sim"].GetDouble());
         }
     }
     Timers_.Queue.stop();
@@ -547,7 +548,8 @@ void PwngClient::updateUI()
             ImGui::Indent();
                 auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
                 ImGui::SliderFloat("Stars: Minimum Display Size", &StarsDisplaySizeMin_, 0.1, 20.0);
-                ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, std::max(5.0, std::min(1.0e-7/Zoom.z, 1.0e11)));
+                // ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, std::max(5.0, std::min(1.0e-7/Zoom.z, 1.0e11)));
+                ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, std::clamp(1.0e-7/Zoom.z, 5.0, 1.0e11));
                 if (StarsDisplayScaleFactor_ >  1.0e-7/Zoom.z) StarsDisplayScaleFactor_= 1.0e-7/Zoom.z;
             ImGui::Unindent();
             UI.processObjectLabels();
@@ -587,11 +589,20 @@ void PwngClient::updateUI()
 
 void PwngClient::sendJsonRpcMessage(const std::string& _Msg, const std::string& _ID)
 {
-    json j =  {{"jsonrpc", "2.0"},
-               {"method", "send"},
-               {"params", {{"Message", _Msg}}},
-               {"id", _ID}};
-    OutputQueue_.enqueue(j.dump(4));
+    using namespace rapidjson;
+    StringBuffer s;
+    Writer<StringBuffer> w(s);
+
+    w.StartObject();
+    w.Key("jsonrpc"); w.String("2.0");
+    w.Key("method"); w.String("send");
+    w.Key("params");
+        w.StartObject();
+        w.Key("Message"); w.String(_Msg.c_str());
+        w.EndObject();
+    w.Key("id"); w.String(_ID.c_str());
+    w.EndObject();
+    OutputQueue_.enqueue(s.GetString());
 }
 
 MAGNUM_APPLICATION_MAIN(PwngClient)

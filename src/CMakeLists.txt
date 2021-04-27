@@ -1,5 +1,5 @@
 find_package(Threads)
-find_package(nlohmann_json 3.2.0 REQUIRED)
+find_package(RapidJSON)
 
 set(HEADERS
   managers/network_manager.hpp
@@ -36,7 +36,6 @@ target_link_libraries(pwng-client PRIVATE
   Magnum::Primitives
   Magnum::Shaders
   MagnumIntegration::ImGui
-  nlohmann_json::nlohmann_json
   OpenGL::GL
   Threads::Threads
   ${LIBNOISE_LIBRARY_LOCAL}
