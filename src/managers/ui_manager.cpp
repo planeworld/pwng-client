@@ -68,6 +68,7 @@ void UIManager::displayPerformance(PerformanceTimers& _Timers)
     ImGui::Text("Server:");
     ImGui::Indent();
         ImGui::Text("Sim:  %.2f ms", _Timers.ServerSimFrameTimeAvg.getAvg_ms());
+        ImGui::Text("- Queue In:   %.2f ms", _Timers.ServerQueueInFrameTimeAvg.getAvg_ms());
         ImGui::Text("- Queue Out:  %.2f ms", _Timers.ServerQueueOutFrameTimeAvg.getAvg_ms());
         ImGui::Text("- Physics:  %.2f ms", _Timers.ServerPhysicsFrameTimeAvg.getAvg_ms());
     ImGui::Unindent();

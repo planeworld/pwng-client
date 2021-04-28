@@ -207,6 +207,7 @@ void PwngClient::getObjectsFromQueue()
         else if (j["method"] == "sim_stats")
         {
             Timers_.ServerPhysicsFrameTimeAvg.addValue(j["params"]["t_phy"].GetDouble());
+            Timers_.ServerQueueInFrameTimeAvg.addValue(j["params"]["t_queue_in"].GetDouble());
             Timers_.ServerQueueOutFrameTimeAvg.addValue(j["params"]["t_queue_out"].GetDouble());
             Timers_.ServerSimFrameTimeAvg.addValue(j["params"]["t_sim"].GetDouble());
         }

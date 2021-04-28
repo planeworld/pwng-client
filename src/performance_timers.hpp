@@ -15,6 +15,7 @@ struct PerformanceTimers
     AvgFilter<double> ViewportTestAvg{50};
 
     AvgFilter<double> ServerPhysicsFrameTimeAvg{50};
+    AvgFilter<double> ServerQueueInFrameTimeAvg{50};
     AvgFilter<double> ServerQueueOutFrameTimeAvg{50};
     AvgFilter<double> ServerSimFrameTimeAvg{50};
 };
