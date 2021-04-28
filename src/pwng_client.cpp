@@ -105,6 +105,11 @@ void PwngClient::mouseReleaseEvent(MouseEvent& Event)
     ImGUI_.handleMouseReleaseEvent(Event);
 }
 
+void PwngClient::mouseScrollEvent(MouseScrollEvent& Event)
+{
+    ImGUI_.handleMouseScrollEvent(Event);
+}
+
 void PwngClient::textInputEvent(TextInputEvent& Event)
 {
     ImGUI_.handleTextInputEvent(Event);
