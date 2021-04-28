@@ -496,6 +496,19 @@ void PwngClient::updateUI()
             ImGui::Indent();
                 UI.processConnections();
 
+                if (ImGui::Button("Get Static Galaxy Data"))
+                {
+                    this->sendJsonRpcMessage("get_data", "c000");
+                }
+                if (ImGui::Button("Subscribe: Dynamic Data"))
+                {
+                    this->sendJsonRpcMessage("sub_dynamic_data", "c001");
+                }
+                if (ImGui::Button("Subscribe: Server Stats"))
+                {
+                    this->sendJsonRpcMessage("sub_server_stats", "c001");
+                }
+
                 if (ImGui::Button("Quit Client"))
                 {
                     Network.quit();
@@ -522,14 +535,6 @@ void PwngClient::updateUI()
                 if (ImGui::Button("Send"))
                 {
                     this->sendJsonRpcMessage(Msg, Id);
-                }
-                if (ImGui::Button("Get Static Galaxy Data"))
-                {
-                    this->sendJsonRpcMessage("get_data", "c000");
-                }
-                if (ImGui::Button("Subscribe: Dynamic Data"))
-                {
-                    this->sendJsonRpcMessage("sub_dynamic_data", "c001");
                 }
                 if (ImGui::Button("Start Simulation"))
                 {
