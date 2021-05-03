@@ -151,11 +151,11 @@ void PwngClient::getObjectsFromQueue()
             auto ci = Id2EntityMap_.find(Id);
             if (ci != Id2EntityMap_.end())
             {
-                Reg_.replace<RadiusComponent>(ci->second, r);
-                Reg_.replace<NameComponent>(ci->second, n);
-                Reg_.replace<MassComponent>(ci->second, m);
-                Reg_.replace<SystemPositionComponent>(ci->second, x, y);
-                Reg_.replace<StarDataComponent>(ci->second, SpectralClassE(SC), t);
+                Reg_.emplace_or_replace<RadiusComponent>(ci->second, r);
+                Reg_.emplace_or_replace<NameComponent>(ci->second, n);
+                Reg_.emplace_or_replace<MassComponent>(ci->second, m);
+                Reg_.emplace_or_replace<SystemPositionComponent>(ci->second, x, y);
+                Reg_.emplace_or_replace<StarDataComponent>(ci->second, SpectralClassE(SC), t);
                 DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
             }
             else
@@ -185,11 +185,11 @@ void PwngClient::getObjectsFromQueue()
             auto ci = Id2EntityMap_.find(Id);
             if (ci != Id2EntityMap_.end())
             {
-                Reg_.replace<NameComponent>(ci->second, n);
-                Reg_.replace<MassComponent>(ci->second, m);
-                Reg_.replace<PositionComponent>(ci->second, px, py);
-                Reg_.replace<RadiusComponent>(ci->second, r);
-                Reg_.replace<SystemPositionComponent>(ci->second, spx, spy);
+                Reg_.emplace_or_replace<NameComponent>(ci->second, n);
+                Reg_.emplace_or_replace<MassComponent>(ci->second, m);
+                Reg_.emplace_or_replace<PositionComponent>(ci->second, px, py);
+                Reg_.emplace_or_replace<RadiusComponent>(ci->second, r);
+                Reg_.emplace_or_replace<SystemPositionComponent>(ci->second, spx, spy);
                 DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
             }
             else
@@ -228,9 +228,16 @@ void PwngClient::updateCameraHook()
 
     if (Reg_.valid(h.e))
     {
-        auto& p = Reg_.get<SystemPositionComponent>(h.e);
-        h.x = p.x;
-        h.y = p.y;
+        auto& p_sys = Reg_.get<SystemPositionComponent>(h.e);
+        auto* p_local = Reg_.try_get<PositionComponent>(h.e);
+        h.x = p_sys.x;
+        h.y = p_sys.y;
+
+        if (p_local != nullptr)
+        {
+            h.x -= p_local->x;
+            h.y += p_local->y;
+        }
     }
 }
 
@@ -315,11 +322,8 @@ void PwngClient::renderScene()
     // After that, test all objects for camera viewport and tag
     // appropriatly
     Timers_.ViewportTest.start();
-    Reg_.view<SystemPositionComponent, entt::tag<"is_outside"_hs>>().each(
-        [this](auto _e, const auto& _p)
-        {
-            Reg_.remove<entt::tag<"is_outside"_hs>>(_e);
-        });
+
+    Reg_.clear<entt::tag<"is_outside"_hs>>();
 
     const double ScreenX = windowSize().x();
     const double ScreenY = windowSize().y();
@@ -330,17 +334,15 @@ void PwngClient::renderScene()
             auto x = _p.x;
             auto y = _p.y;
 
+            auto* PosLocal = Reg_.try_get<PositionComponent>(_e);
+            if (PosLocal != nullptr)
+            {
+                x -= PosLocal->x;
+                y += PosLocal->y;
+            }
+
             x -= Pos.x + Hook.x;
             y += Pos.y - Hook.y;
-
-            // std::cout << "PRE_LOCAL" << std::endl;
-            // const PositionComponent* PosLocal = Reg_.try_get<PositionComponent>(_e);
-            // if (PosLocal != nullptr)
-            // {
-            //     std::cout << "LOCAL" << std::endl;
-            //     x -= PosLocal->x;
-            //     y += PosLocal->y;
-            // }
 
             x *= Zoom.z;
             y *= Zoom.z;
@@ -380,7 +382,8 @@ void PwngClient::renderScene()
         Shader_.draw(CircleShape_);
     });
 
-    Reg_.view<SystemPositionComponent, RadiusComponent, PositionComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
+    Reg_.view<SystemPositionComponent, RadiusComponent, PositionComponent>(entt::exclude<entt::tag<"is_outside"_hs>,
+                                                                           StarDataComponent>).each(
         [&](auto _e, const auto& _sp, const auto& _r, const auto& _p)
     {
         auto x = _sp.x;
@@ -403,6 +406,7 @@ void PwngClient::renderScene()
             Matrix3::scaling(Vector2(r, r))
         );
 
+        Shader_.setColor({0.0, 0.0, 1.0});
         Shader_.draw(CircleShape_);
     });
 
@@ -414,6 +418,7 @@ void PwngClient::setupCamera()
 {
     Camera_ = Reg_.create();
     Reg_.emplace<HookComponent>(Camera_);
+    Reg_.emplace<PositionComponent>(Camera_);
     Reg_.emplace<SystemPositionComponent>(Camera_);
     Reg_.emplace<ZoomComponent>(Camera_);
 }
