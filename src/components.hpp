@@ -14,11 +14,14 @@ struct RadiusComponent
     double r{1.0};
 };
 
+struct HookDummyComponent
+{
+    entt::entity e{entt::null};
+};
+
 struct HookComponent
 {
     entt::entity e{entt::null};
-    double x{0.0};
-    double y{0.0};
 };
 
 struct NameComponent

@@ -16,10 +16,12 @@ class UIManager
                   Magnum::ImGuiIntegration::Context& _ImGUI) :
                   Reg_(_Reg), ImGUI_(_ImGUI) {}
 
+        void displayHelp();
         void displayObjectLabels(entt::entity _Cam);
         void displayPerformance(PerformanceTimers& _Timers);
         void processCameraHooks(entt::entity _Cam);
         void processConnections();
+        void processHelp();
         void processObjectLabels();
         void processVerbosity();
 
@@ -34,6 +36,7 @@ class UIManager
         bool LabelsPosition_{false};
         bool LabelsStarData_{false};
         bool LabelsVelocity_{false};
+        bool ShowHelp_{false};
 };
 
 #endif // UI_MANAGER_HPP

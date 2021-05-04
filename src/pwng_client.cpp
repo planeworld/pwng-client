@@ -51,7 +51,6 @@ void PwngClient::drawEvent()
     GL::defaultFramebuffer.clearColor(Color4(0.0f, 0.0f, 0.0f, 1.0f));
 
     this->getObjectsFromQueue();
-    this->updateCameraHook();
     this->renderScene();
     this->renderScale();
 
@@ -107,7 +106,22 @@ void PwngClient::mouseReleaseEvent(MouseEvent& Event)
 
 void PwngClient::mouseScrollEvent(MouseScrollEvent& Event)
 {
-    ImGUI_.handleMouseScrollEvent(Event);
+    if (!ImGUI_.handleMouseScrollEvent(Event))
+    {
+        auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
+
+        double ZoomSpeed = 1.0+Event.offset().y()*0.9;
+        if (Event.modifiers() & MouseScrollEvent::Modifier::Shift)
+        {
+            ZoomSpeed = 1.0+Event.offset().y()*0.1;
+        }
+
+        if (Zoom.z *  ZoomSpeed > 0.0)
+            Zoom.z *= ZoomSpeed;
+
+        if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
+        else if (Zoom.z > 100.0) Zoom.z = 100.0;
+    }
 }
 
 void PwngClient::textInputEvent(TextInputEvent& Event)
@@ -222,25 +236,6 @@ void PwngClient::setCameraHook(entt::entity _e)
     h.e = _e;
 }
 
-void PwngClient::updateCameraHook()
-{
-    auto& h = Reg_.get<HookComponent>(Camera_);
-
-    if (Reg_.valid(h.e))
-    {
-        auto& p_sys = Reg_.get<SystemPositionComponent>(h.e);
-        auto* p_local = Reg_.try_get<PositionComponent>(h.e);
-        h.x = p_sys.x;
-        h.y = p_sys.y;
-
-        if (p_local != nullptr)
-        {
-            h.x -= p_local->x;
-            h.y += p_local->y;
-        }
-    }
-}
-
 void PwngClient::renderScale()
 {
     auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
@@ -314,7 +309,7 @@ void PwngClient::renderScene()
 {
     GL::defaultFramebuffer.setViewport({{}, windowSize()});
 
-    auto& Hook = Reg_.get<HookComponent>(Camera_);
+    auto& HookPos = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
     auto& Pos = Reg_.get<SystemPositionComponent>(Camera_);
     auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
 
@@ -329,7 +324,7 @@ void PwngClient::renderScene()
     const double ScreenY = windowSize().y();
 
     Reg_.view<SystemPositionComponent>().each(
-        [this, &Hook, &Pos, &ScreenX, &ScreenY, &Zoom](auto _e, const auto& _p)
+        [this, &HookPos, &Pos, &ScreenX, &ScreenY, &Zoom](auto _e, const auto& _p)
         {
             auto x = _p.x;
             auto y = _p.y;
@@ -341,8 +336,8 @@ void PwngClient::renderScene()
                 y += PosLocal->y;
             }
 
-            x -= Pos.x + Hook.x;
-            y += Pos.y - Hook.y;
+            x -= Pos.x + HookPos.x;
+            y += Pos.y - HookPos.y;
 
             x *= Zoom.z;
             y *= Zoom.z;
@@ -363,8 +358,8 @@ void PwngClient::renderScene()
         auto x = _p.x;
         auto y = _p.y;
 
-        x -= Pos.x + Hook.x;
-        y += Pos.y - Hook.y;
+        x -= Pos.x + HookPos.x;
+        y += Pos.y - HookPos.y;
         x *= Zoom.z;
         y *= Zoom.z;
 
@@ -389,8 +384,8 @@ void PwngClient::renderScene()
         auto x = _sp.x;
         auto y = _sp.y;
 
-        x -= Pos.x + Hook.x;
-        y += Pos.y - Hook.y;
+        x -= Pos.x + HookPos.x;
+        y += Pos.y - HookPos.y;
         x -= _p.x;
         y += _p.y;
         x *= Zoom.z;
@@ -417,7 +412,13 @@ void PwngClient::renderScene()
 void PwngClient::setupCamera()
 {
     Camera_ = Reg_.create();
-    Reg_.emplace<HookComponent>(Camera_);
+    auto& HookDummy = Reg_.emplace<HookDummyComponent>(Camera_);
+    HookDummy.e = Reg_.create();
+    Reg_.emplace<SystemPositionComponent>(HookDummy.e);
+
+    auto& Hook = Reg_.emplace<HookComponent>(Camera_);
+    Hook.e = HookDummy.e;
+
     Reg_.emplace<PositionComponent>(Camera_);
     Reg_.emplace<SystemPositionComponent>(Camera_);
     Reg_.emplace<ZoomComponent>(Camera_);
@@ -505,6 +506,8 @@ void PwngClient::updateUI()
 
             ImGui::TextColored(ImVec4(1,1,0,1), "Client control");
             ImGui::Indent();
+
+                UI.processHelp();
                 UI.processConnections();
 
                 if (ImGui::Button("Get Static Galaxy Data"))
@@ -572,6 +575,7 @@ void PwngClient::updateUI()
             UI.processObjectLabels();
         ImGui::End();
         UI.displayObjectLabels(Camera_);
+        UI.displayHelp();
         ImGuiWindowFlags WindowFlags =  ImGuiWindowFlags_NoDecoration |
                                         ImGuiWindowFlags_AlwaysAutoResize |
                                         ImGuiWindowFlags_NoSavedSettings |

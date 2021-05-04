@@ -5,15 +5,40 @@
 #include "message_handler.hpp"
 #include "network_manager.hpp"
 
+void UIManager::displayHelp()
+{
+    ImGuiWindowFlags WindowFlags =  ImGuiWindowFlags_NoDecoration |
+                                    ImGuiWindowFlags_AlwaysAutoResize |
+                                    ImGuiWindowFlags_NoSavedSettings |
+                                    ImGuiWindowFlags_NoInputs |
+                                    ImGuiWindowFlags_NoNav |
+                                    ImGuiWindowFlags_NoMove;
+    bool CloseButton{false};
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2, 40), ImGuiCond_Always, ImVec2(0.5f,0.5f));
+
+    if (ShowHelp_)
+    {
+        ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2,
+                                        ImGui::GetIO().DisplaySize.y / 2), ImGuiCond_Always, ImVec2(0.5f,0.5f));
+        ImGui::Begin("Help", &CloseButton, WindowFlags);
+            ImGui::Text("Zoom in:         Mouse wheel forward");
+            ImGui::Text("Zoom in (slow):  Mouse wheel forward + Left Shift");
+            ImGui::Text("Zoom out:        Mouse wheel backward");
+            ImGui::Text("Zoom out (slow): Mouse wheel backward + Left Shift");
+        ImGui::End();
+    }
+
+}
+
 void UIManager::displayObjectLabels(entt::entity _Cam)
 {
     if (Labels_)
     {
-        auto& Hook = Reg_.get<HookComponent>(_Cam);
+        auto& HookPos = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(_Cam).e);
         auto& Pos = Reg_.get<SystemPositionComponent>(_Cam);
         auto& Zoom = Reg_.get<ZoomComponent>(_Cam);
         Reg_.view<MassComponent, SystemPositionComponent, NameComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
-                [this, &Hook, &Pos, &Zoom]
+                [this, &HookPos, &Pos, &Zoom]
                 (auto _e, const auto& _m, const auto& _p, const auto& _n, const auto& _r, const auto& _s)
         {
             ImGuiWindowFlags WindowFlags =  ImGuiWindowFlags_NoDecoration |
@@ -23,12 +48,13 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
                                             ImGuiWindowFlags_NoInputs |
                                             ImGuiWindowFlags_NoNav |
                                             ImGuiWindowFlags_NoMove;
+            ImGui::GetStyle().FrameRounding = 0.0f;
             bool CloseButton{false};
             auto x = _p.x;
             auto y = _p.y;
 
-            x -= Pos.x + Hook.x;
-            y += Pos.y - Hook.y;
+            x -= Pos.x + HookPos.x;
+            y += Pos.y - HookPos.y;
             x *= Zoom.z;
             y *= Zoom.z;
 
@@ -82,7 +108,7 @@ void UIManager::processCameraHooks(entt::entity _Cam)
     std::vector<entt::entity> Entities;
 
     Names.push_back("None");
-    Entities.push_back(entt::null);
+    Entities.push_back(Reg_.get<HookDummyComponent>(_Cam).e);
 
     Reg_.view<NameComponent>().each(
         [&Names, &Entities](auto _e, const auto& _n)
@@ -118,6 +144,12 @@ void UIManager::processConnections()
     {
         if (ImGui::Button("Connect")) Network.connect(Uri);
     }
+}
+
+void UIManager::processHelp()
+{
+    if (ImGui::Button("Help")) ShowHelp_ ^= true;
+
 }
 
 void UIManager::processObjectLabels()
