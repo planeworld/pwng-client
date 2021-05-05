@@ -10,6 +10,7 @@ set(HEADERS
   message_handler.hpp
   performance_timers.hpp
   pwng_client.hpp
+  scale_unit.hpp
   timer.hpp
 )
 

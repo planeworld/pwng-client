@@ -6,6 +6,7 @@
 
 #include "components.hpp"
 #include "performance_timers.hpp"
+#include "scale_unit.hpp"
 
 class UIManager
 {
@@ -19,6 +20,7 @@ class UIManager
         void displayHelp();
         void displayObjectLabels(entt::entity _Cam);
         void displayPerformance(PerformanceTimers& _Timers);
+        void displayScale(const int _Scale, const ScaleUnitE _ScaleUnit);
         void processCameraHooks(entt::entity _Cam);
         void processConnections();
         void processHelp();

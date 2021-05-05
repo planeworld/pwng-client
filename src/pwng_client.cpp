@@ -110,17 +110,21 @@ void PwngClient::mouseScrollEvent(MouseScrollEvent& Event)
     {
         auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
 
-        double ZoomSpeed = 1.0+Event.offset().y()*0.9;
+        double ZoomSpeed = std::pow(10.0, Event.offset().y());
         if (Event.modifiers() & MouseScrollEvent::Modifier::Shift)
         {
-            ZoomSpeed = 1.0+Event.offset().y()*0.1;
+            ZoomSpeed = std::pow(10.0, Event.offset().y()*0.1);
         }
 
-        if (Zoom.z *  ZoomSpeed > 0.0)
-            Zoom.z *= ZoomSpeed;
+        Zoom.t = Zoom.z * ZoomSpeed;
+        Zoom.i = (Zoom.t - Zoom.z) / Zoom.s;
+        Zoom.c = 0;
 
-        if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
-        else if (Zoom.z > 100.0) Zoom.z = 100.0;
+        // if (Zoom.z *  ZoomSpeed > 0.0)
+        //     Zoom.z *= ZoomSpeed;
+
+        // if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
+        // else if (Zoom.z > 100.0) Zoom.z = 100.0;
     }
 }
 
@@ -312,6 +316,19 @@ void PwngClient::renderScene()
     auto& HookPos = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
     auto& Pos = Reg_.get<SystemPositionComponent>(Camera_);
     auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
+
+    if (Zoom.c < Zoom.s && Zoom.t != Zoom.z)
+    {
+        Zoom.z += Zoom.i;
+        Zoom.c++;
+    }
+    else
+    {
+        Zoom.c = 0;
+        Zoom.t = Zoom.z;
+    }
+    if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
+    else if (Zoom.z > 100.0) Zoom.z = 100.0;
 
     // Remove all "outside" tags from objects
     // After that, test all objects for camera viewport and tag
@@ -567,7 +584,6 @@ void PwngClient::updateUI()
             ImGui::Indent();
                 auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
                 ImGui::SliderFloat("Stars: Minimum Display Size", &StarsDisplaySizeMin_, 0.1, 20.0);
-                // ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, std::max(5.0, std::min(1.0e-7/Zoom.z, 1.0e11)));
                 ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, std::clamp(1.0e-7/Zoom.z, 5.0, 1.0e11));
                 if (StarsDisplayScaleFactor_ >  1.0e-7/Zoom.z) StarsDisplayScaleFactor_= 1.0e-7/Zoom.z;
                 if (StarsDisplayScaleFactor_ <  1.0) StarsDisplayScaleFactor_= 1.0;
@@ -576,29 +592,7 @@ void PwngClient::updateUI()
         ImGui::End();
         UI.displayObjectLabels(Camera_);
         UI.displayHelp();
-        ImGuiWindowFlags WindowFlags =  ImGuiWindowFlags_NoDecoration |
-                                        ImGuiWindowFlags_AlwaysAutoResize |
-                                        ImGuiWindowFlags_NoSavedSettings |
-                                        ImGuiWindowFlags_NoFocusOnAppearing |
-                                        ImGuiWindowFlags_NoInputs |
-                                        ImGuiWindowFlags_NoNav |
-                                        ImGuiWindowFlags_NoMove;
-        bool CloseButton{false};
-
-        ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2, 40), ImGuiCond_Always, ImVec2(0.5f,0.5f));
-        ImGui::Begin("Scale", &CloseButton, WindowFlags);
-            int l = std::pow(10,Scale_);
-            if (ScaleUnit_ == ScaleUnitE::MLY)
-                ImGui::Text("Scale: %d million ly", l);
-            else if (ScaleUnit_ == ScaleUnitE::LY)
-                ImGui::Text("Scale: %d ly", l);
-            else if (ScaleUnit_ == ScaleUnitE::MKM)
-                ImGui::Text("Scale: %d million km", l);
-            else if (ScaleUnit_ == ScaleUnitE::KM)
-                ImGui::Text("Scale: %d km", l);
-            else if (ScaleUnit_ == ScaleUnitE::M)
-                ImGui::Text("Scale: %d m", l);
-        ImGui::End();
+        UI.displayScale(Scale_, ScaleUnit_);
     }
     ImGUI_.drawFrame();
 

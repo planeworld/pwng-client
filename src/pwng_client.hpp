@@ -15,6 +15,7 @@
 
 #include "color_palette.hpp"
 #include "performance_timers.hpp"
+#include "scale_unit.hpp"
 
 using namespace Magnum;
 
@@ -68,14 +69,6 @@ class PwngClient : public Magnum::Platform::Application
         ColorPalette TemperaturePalette_;
         int Scale_{0};
 
-        enum class ScaleUnitE
-        {
-            MLY,
-            LY,
-            MKM,
-            KM,
-            M
-        };
         ScaleUnitE ScaleUnit_{ScaleUnitE::LY};
 
         // --- Graphics - Camera ---//

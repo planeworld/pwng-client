@@ -48,7 +48,6 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
                                             ImGuiWindowFlags_NoInputs |
                                             ImGuiWindowFlags_NoNav |
                                             ImGuiWindowFlags_NoMove;
-            ImGui::GetStyle().FrameRounding = 0.0f;
             bool CloseButton{false};
             auto x = _p.x;
             auto y = _p.y;
@@ -98,6 +97,33 @@ void UIManager::displayPerformance(PerformanceTimers& _Timers)
         ImGui::Text("- Queue Out:  %.2f ms", _Timers.ServerQueueOutFrameTimeAvg.getAvg_ms());
         ImGui::Text("- Physics:  %.2f ms", _Timers.ServerPhysicsFrameTimeAvg.getAvg_ms());
     ImGui::Unindent();
+}
+
+void UIManager::displayScale(const int _Scale, const ScaleUnitE _ScaleUnit)
+{
+    ImGuiWindowFlags WindowFlags =  ImGuiWindowFlags_NoDecoration |
+                                    ImGuiWindowFlags_AlwaysAutoResize |
+                                    ImGuiWindowFlags_NoSavedSettings |
+                                    ImGuiWindowFlags_NoFocusOnAppearing |
+                                    ImGuiWindowFlags_NoInputs |
+                                    ImGuiWindowFlags_NoNav |
+                                    ImGuiWindowFlags_NoMove;
+    bool CloseButton{false};
+
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2, 40), ImGuiCond_Always, ImVec2(0.5f,0.5f));
+    ImGui::Begin("Scale", &CloseButton, WindowFlags);
+        int l = std::pow(10, _Scale);
+        if (_ScaleUnit == ScaleUnitE::MLY)
+            ImGui::Text("Scale: %d million ly", l);
+        else if (_ScaleUnit == ScaleUnitE::LY)
+            ImGui::Text("Scale: %d ly", l);
+        else if (_ScaleUnit == ScaleUnitE::MKM)
+            ImGui::Text("Scale: %d million km", l);
+        else if (_ScaleUnit == ScaleUnitE::KM)
+            ImGui::Text("Scale: %d km", l);
+        else if (_ScaleUnit == ScaleUnitE::M)
+            ImGui::Text("Scale: %d m", l);
+    ImGui::End();
 }
 
 void UIManager::processCameraHooks(entt::entity _Cam)
