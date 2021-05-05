@@ -61,8 +61,8 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
             double ScreenY = ImGui::GetIO().DisplaySize.y;
             ImGui::SetNextWindowPos(ImVec2(int( x+0.5*ScreenX),
                                            int(-y+0.5*ScreenY)));
-            ImGui::Begin(_n.n.c_str(), &CloseButton, WindowFlags);
-                ImGui::TextColored(ImVec4(0.5, 0.5, 1.0, 1.0), _n.n.c_str());
+            ImGui::Begin(_n.Name, &CloseButton, WindowFlags);
+                ImGui::TextColored(ImVec4(0.5, 0.5, 1.0, 1.0), _n.Name);
                 ImGui::Separator();
                 ImGui::Indent();
                     if (LabelsStarData_)
@@ -139,7 +139,7 @@ void UIManager::processCameraHooks(entt::entity _Cam)
     Reg_.view<NameComponent>().each(
         [&Names, &Entities](auto _e, const auto& _n)
         {
-            Names.push_back(_n.n);
+            Names.push_back(_n.Name);
             Entities.push_back(_e);
         });
 
@@ -153,7 +153,7 @@ void UIManager::processCameraHooks(entt::entity _Cam)
         h.e = Entities[CamHook];
         p.x = 0.0;
         p.y = 0.0;
-        DBLK(Messages.report("ui", "New camera hook on object " + Names[CamHook], MessageHandler::DEBUG_L1);)
+        DBLK(Messages.report("ui", "New camera hook on object " + std::string(Names[CamHook]), MessageHandler::DEBUG_L1);)
     }
 }
 

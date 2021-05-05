@@ -1,6 +1,9 @@
 #ifndef UI_MANAGER_HPP
 #define UI_MANAGER_HPP
 
+#include <string>
+#include <vector>
+
 #include <entt/entity/registry.hpp>
 #include <Magnum/ImGuiIntegration/Context.hpp>
 

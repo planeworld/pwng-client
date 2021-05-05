@@ -19,6 +19,7 @@
 
 #include "components.hpp"
 #include "message_handler.hpp"
+#include "name_system.hpp"
 #include "network_manager.hpp"
 #include "pwng_client.hpp"
 #include "ui_manager.hpp"
@@ -28,6 +29,7 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
 
 {
     Reg_.set<MessageHandler>();
+    Reg_.set<NameSystem>(Reg_);
     Reg_.set<NetworkManager>(Reg_);
     Reg_.set<UIManager>(Reg_, ImGUI_);
 
@@ -119,12 +121,6 @@ void PwngClient::mouseScrollEvent(MouseScrollEvent& Event)
         Zoom.t = Zoom.z * ZoomSpeed;
         Zoom.i = (Zoom.t - Zoom.z) / Zoom.s;
         Zoom.c = 0;
-
-        // if (Zoom.z *  ZoomSpeed > 0.0)
-        //     Zoom.z *= ZoomSpeed;
-
-        // if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
-        // else if (Zoom.z > 100.0) Zoom.z = 100.0;
     }
 }
 
@@ -146,6 +142,7 @@ void PwngClient::getObjectsFromQueue()
 {
     Timers_.Queue.start();
     auto& Messages = Reg_.ctx<MessageHandler>();
+    auto& Names = Reg_.ctx<NameSystem>();
 
     std::string Data;
     while (InputQueue_.try_dequeue(Data))
@@ -170,20 +167,22 @@ void PwngClient::getObjectsFromQueue()
             if (ci != Id2EntityMap_.end())
             {
                 Reg_.emplace_or_replace<RadiusComponent>(ci->second, r);
-                Reg_.emplace_or_replace<NameComponent>(ci->second, n);
                 Reg_.emplace_or_replace<MassComponent>(ci->second, m);
                 Reg_.emplace_or_replace<SystemPositionComponent>(ci->second, x, y);
                 Reg_.emplace_or_replace<StarDataComponent>(ci->second, SpectralClassE(SC), t);
+                Reg_.emplace_or_replace<NameComponent>(ci->second);
+                Names.setName(ci->second, n);
                 DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
             }
             else
             {
                 auto e = Reg_.create();
                 Reg_.emplace<RadiusComponent>(e, r);
-                Reg_.emplace<NameComponent>(e, n);
                 Reg_.emplace<MassComponent>(e, m);
                 Reg_.emplace<SystemPositionComponent>(e, x, y);
                 Reg_.emplace<StarDataComponent>(e, SpectralClassE(SC), t);
+                Reg_.emplace<NameComponent>(e);
+                Names.setName(e, n);
                 Id2EntityMap_[Id] = e;
                 DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
             }
@@ -203,21 +202,23 @@ void PwngClient::getObjectsFromQueue()
             auto ci = Id2EntityMap_.find(Id);
             if (ci != Id2EntityMap_.end())
             {
-                Reg_.emplace_or_replace<NameComponent>(ci->second, n);
                 Reg_.emplace_or_replace<MassComponent>(ci->second, m);
                 Reg_.emplace_or_replace<PositionComponent>(ci->second, px, py);
                 Reg_.emplace_or_replace<RadiusComponent>(ci->second, r);
                 Reg_.emplace_or_replace<SystemPositionComponent>(ci->second, spx, spy);
+                Reg_.emplace_or_replace<NameComponent>(ci->second);
+                Names.setName(ci->second, n);
                 DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
             }
             else
             {
                 auto e = Reg_.create();
-                Reg_.emplace<NameComponent>(e, n);
                 Reg_.emplace<MassComponent>(e, m);
                 Reg_.emplace<PositionComponent>(e, px, py);
                 Reg_.emplace<RadiusComponent>(e, r);
                 Reg_.emplace<SystemPositionComponent>(e, spx, spy);
+                Reg_.emplace<NameComponent>(e);
+                Names.setName(e, n);
                 Id2EntityMap_[Id] = e;
                 DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
             }

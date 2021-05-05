@@ -1,8 +1,10 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
-#include <string>
+#include <cstring>
 #include <unordered_map>
+
+#include <entt/entity/registry.hpp>
 
 struct MassComponent
 {
@@ -24,9 +26,15 @@ struct HookComponent
     entt::entity e{entt::null};
 };
 
+// 31 characters and trailing delimiter (\0)
+constexpr std::size_t NAME_SIZE_MAX = 32;
+
 struct NameComponent
 {
-    std::string n{"Jane Doe"};
+    // Use fixed length char[] to ensure memory is aligned and not dynamically
+    // allocated (in comparison to std::string). Hence, a name-system is used
+    // to set names via string copy and test for length
+    char Name[NAME_SIZE_MAX]{"Unknown"};
 };
 
 struct PositionComponent
