@@ -77,7 +77,8 @@ void PwngClient::mouseMoveEvent(MouseMoveEvent& Event)
     {
         if (Event.modifiers() & MouseMoveEvent::Modifier::Ctrl)
         {
-            auto& Pos = Reg_.get<SystemPositionComponent>(Camera_);
+            auto& SysPos = Reg_.get<SystemPositionComponent>(Camera_);
+            auto& Pos = Reg_.get<PositionComponent>(Camera_);
             auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
             if (Event.modifiers() & MouseMoveEvent::Modifier::Shift)
             {
@@ -88,8 +89,16 @@ void PwngClient::mouseMoveEvent(MouseMoveEvent& Event)
             }
             else
             {
-                Pos.x += Event.relativePosition().x() / Zoom.z;
-                Pos.y += Event.relativePosition().y() / Zoom.z;
+                if (Zoom.z < 1.0e12)
+                {
+                    Pos.x -= Event.relativePosition().x() / Zoom.z;
+                    Pos.y += Event.relativePosition().y() / Zoom.z;
+                }
+                else
+                {
+                    SysPos.x -= Event.relativePosition().x() / Zoom.z;
+                    SysPos.y += Event.relativePosition().y() / Zoom.z;
+                }
             }
         }
     }
@@ -113,7 +122,7 @@ void PwngClient::mouseScrollEvent(MouseScrollEvent& Event)
         auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
 
         double ZoomSpeed = std::pow(10.0, Event.offset().y());
-        if (Event.modifiers() & MouseScrollEvent::Modifier::Shift)
+        if (Event.modifiers() & MouseScrollEvent::Modifier::Ctrl)
         {
             ZoomSpeed = std::pow(10.0, Event.offset().y()*0.1);
         }
@@ -235,11 +244,16 @@ void PwngClient::getObjectsFromQueue()
     Timers_.QueueAvg.addValue(Timers_.Queue.elapsed());
 }
 
-void PwngClient::setCameraHook(entt::entity _e)
-{
-    auto& h = Reg_.get<HookComponent>(Camera_);
-    h.e = _e;
-}
+// void PwngClient::setCameraHook(entt::entity _e)
+// {
+//     auto& h = Reg_.get<HookComponent>(Camera_);
+//     h.e = _e;
+//     auto& SysPos = Reg_.get<SystemPositionComponent>(Camera_);
+//     auto& Pos = Reg_.get<PositionComponent>(Camera_);
+
+//     SysPos = Reg_.get<SystemPositionComponent>(_e);
+//     Pos = Reg_.get<PositionComponent>(_e);
+// }
 
 void PwngClient::renderScale()
 {
@@ -314,8 +328,10 @@ void PwngClient::renderScene()
 {
     GL::defaultFramebuffer.setViewport({{}, windowSize()});
 
-    auto& HookPos = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
-    auto& Pos = Reg_.get<SystemPositionComponent>(Camera_);
+    auto& HookPosSys = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
+    auto* HookPos    = Reg_.try_get<PositionComponent>(Reg_.get<HookComponent>(Camera_).e);
+    auto& CamPosSys = Reg_.get<SystemPositionComponent>(Camera_);
+    auto& CamPos = Reg_.get<PositionComponent>(Camera_);
     auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
 
     if (Zoom.c < Zoom.s && Zoom.t != Zoom.z)
@@ -331,53 +347,71 @@ void PwngClient::renderScene()
     if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
     else if (Zoom.z > 100.0) Zoom.z = 100.0;
 
-    // Remove all "outside" tags from objects
+    // Remove all "inside" tags from objects
     // After that, test all objects for camera viewport and tag
     // appropriatly
     Timers_.ViewportTest.start();
 
-    Reg_.clear<entt::tag<"is_outside"_hs>>();
+    Reg_.clear<InsideViewportTag>();
 
     const double ScreenX = windowSize().x();
     const double ScreenY = windowSize().y();
 
     Reg_.view<SystemPositionComponent>().each(
-        [this, &HookPos, &Pos, &ScreenX, &ScreenY, &Zoom](auto _e, const auto& _p)
+        [&](auto _e, const auto& _p_s)
         {
-            auto x = _p.x;
-            auto y = _p.y;
+            auto x = _p_s.x;
+            auto y = _p_s.y;
 
-            auto* PosLocal = Reg_.try_get<PositionComponent>(_e);
-            if (PosLocal != nullptr)
+            x += CamPosSys.x - HookPosSys.x;
+            y += CamPosSys.y - HookPosSys.y;
+
+            x += CamPos.x;
+            y += CamPos.y;
+
+            auto* p = Reg_.try_get<PositionComponent>(_e);
+            if (p != nullptr)
             {
-                x -= PosLocal->x;
-                y += PosLocal->y;
+                x += p->x;
+                y += p->y;
             }
-
-            x -= Pos.x + HookPos.x;
-            y += Pos.y - HookPos.y;
+            if (HookPos != nullptr)
+            {
+                x -= HookPos->x;
+                y -= HookPos->y;
+            }
 
             x *= Zoom.z;
             y *= Zoom.z;
 
-            if (( x+0.5*ScreenX < 0) || (x >= 0.5*ScreenX) ||
-                (-y+0.5*ScreenY < 0) || (-y >= 0.5*ScreenY))
+            if ((x+0.5*ScreenX > 0) && (x <= 0.5*ScreenX) &&
+                (y+0.5*ScreenY > 0) && (y <= 0.5*ScreenY))
             {
-                Reg_.emplace<entt::tag<"is_outside"_hs>>(_e);
+                Reg_.emplace<InsideViewportTag>(_e);
             }
         });
     Timers_.ViewportTest.stop();
     Timers_.ViewportTestAvg.addValue(Timers_.ViewportTest.elapsed());
 
     Timers_.Render.start();
-    Reg_.view<SystemPositionComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
+    Reg_.view<SystemPositionComponent, RadiusComponent, StarDataComponent, InsideViewportTag>().each(
         [&](auto _e, const auto& _p, const auto& _r, const auto& _s)
     {
         auto x = _p.x;
         auto y = _p.y;
 
-        x -= Pos.x + HookPos.x;
-        y += Pos.y - HookPos.y;
+        x += CamPosSys.x - HookPosSys.x;
+        y += CamPosSys.y - HookPosSys.y;
+
+        x += CamPos.x;
+        y += CamPos.y;
+
+        if (HookPos != nullptr)
+        {
+            x -= HookPos->x;
+            y -= HookPos->y;
+        }
+
         x *= Zoom.z;
         y *= Zoom.z;
 
@@ -395,16 +429,17 @@ void PwngClient::renderScene()
         Shader_.draw(CircleShape_);
     });
 
-    Reg_.view<SystemPositionComponent, RadiusComponent, PositionComponent>(entt::exclude<entt::tag<"is_outside"_hs>,
-                                                                           StarDataComponent>).each(
+    Reg_.view<SystemPositionComponent, RadiusComponent, PositionComponent, InsideViewportTag>(entt::exclude<StarDataComponent>).each(
         [&](auto _e, const auto& _sp, const auto& _r, const auto& _p)
     {
         auto x = _sp.x;
         auto y = _sp.y;
 
-        x -= Pos.x + HookPos.x;
-        y += Pos.y - HookPos.y;
-        x -= _p.x;
+        x += CamPosSys.x - HookPosSys.x;
+        y += CamPosSys.y - HookPosSys.y;
+        x += CamPos.x - HookPos->x;
+        y += CamPos.y - HookPos->y;
+        x += _p.x;
         y += _p.y;
         x *= Zoom.z;
         y *= Zoom.z;
@@ -432,6 +467,7 @@ void PwngClient::setupCamera()
     Camera_ = Reg_.create();
     auto& HookDummy = Reg_.emplace<HookDummyComponent>(Camera_);
     HookDummy.e = Reg_.create();
+    Reg_.emplace<PositionComponent>(HookDummy.e);
     Reg_.emplace<SystemPositionComponent>(HookDummy.e);
 
     auto& Hook = Reg_.emplace<HookComponent>(Camera_);
@@ -499,6 +535,13 @@ void PwngClient::setupWindow()
     UIStyleSubStats_ = *UIStyle_;
     UIStyleSubStats_.WindowRounding = 0.0f;
 
+    // ImGuiIO& io = ImGui::GetIO();
+    // io.Fonts->AddFontFromFileTTF("/home/bfeld/projects/pwng/client/3rdparty/imgui/misc/fonts/MonospaceTypewriter.ttf", 16.0f);
+    // UIFont_ = io.Fonts->AddFontFromFileTTF("/home/bfeld/projects/pwng/client/3rdparty/imgui/misc/fonts/MonospaceTypewriter.ttf", 18.0f);
+    // io.Fonts->AddFontFromFileTTF("/home/bfeld/projects/pwng/client/3rdparty/imgui/misc/fonts/MonospaceTypewriter.ttf", 20.0f);
+    // io.Fonts->AddFontFromFileTTF("/home/bfeld/projects/pwng/client/3rdparty/imgui/misc/fonts/Roboto-Light.ttf", 20.0f);
+    // io.Fonts->Build();
+
     GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add,
     GL::Renderer::BlendEquation::Add);
     GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha,
@@ -514,9 +557,13 @@ void PwngClient::updateUI()
     GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
     GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
     GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
+    GL::Renderer::disable(GL::Renderer::Feature::StencilTest);
 
     ImGUI_.newFrame();
     {
+        // ImGui::ShowDemoWindow();
+        // ImGui::ShowFontSelector("Font");
+
         auto& UI = Reg_.ctx<UIManager>();
         ImGui::Begin("PwNG Desktop Client");
 

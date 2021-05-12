@@ -21,10 +21,9 @@ void UIManager::displayHelp()
         ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2,
                                         ImGui::GetIO().DisplaySize.y / 2), ImGuiCond_Always, ImVec2(0.5f,0.5f));
         ImGui::Begin("Help", &CloseButton, WindowFlags);
-            ImGui::Text("Zoom in:         Mouse wheel forward");
-            ImGui::Text("Zoom in (slow):  Mouse wheel forward + Left Shift");
-            ImGui::Text("Zoom out:        Mouse wheel backward");
-            ImGui::Text("Zoom out (slow): Mouse wheel backward + Left Shift");
+            ImGui::Text("Move:        Mouse move + LCtrl");
+            ImGui::Text("Zoom:        Mouse wheel");
+            ImGui::Text("Zoom (slow): Mouse wheel + LCtrl");
         ImGui::End();
     }
 
@@ -37,7 +36,7 @@ void UIManager::displayObjectLabels(entt::entity _Cam)
         auto& HookPos = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(_Cam).e);
         auto& Pos = Reg_.get<SystemPositionComponent>(_Cam);
         auto& Zoom = Reg_.get<ZoomComponent>(_Cam);
-        Reg_.view<MassComponent, SystemPositionComponent, NameComponent, RadiusComponent, StarDataComponent>(entt::exclude<entt::tag<"is_outside"_hs>>).each(
+        Reg_.view<MassComponent, SystemPositionComponent, NameComponent, RadiusComponent, StarDataComponent, InsideViewportTag>().each(
                 [this, &HookPos, &Pos, &Zoom]
                 (auto _e, const auto& _m, const auto& _p, const auto& _n, const auto& _r, const auto& _s)
         {
@@ -149,10 +148,14 @@ void UIManager::processCameraHooks(entt::entity _Cam)
         auto& Messages = Reg_.ctx<MessageHandler>();
 
         auto& h = Reg_.get<HookComponent>(_Cam);
-        auto& p = Reg_.get<SystemPositionComponent>(_Cam);
+        auto& p_s = Reg_.get<SystemPositionComponent>(_Cam);
         h.e = Entities[CamHook];
-        p.x = 0.0;
-        p.y = 0.0;
+
+        p_s = {0.0, 0.0};
+
+        auto* p = Reg_.try_get<PositionComponent>(_Cam);
+        if (p != nullptr) *p = {0.0, 0.0};
+
         DBLK(Messages.report("ui", "New camera hook on object " + std::string(Names[CamHook]), MessageHandler::DEBUG_L1);)
     }
 }

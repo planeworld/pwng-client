@@ -46,7 +46,7 @@ class PwngClient : public Magnum::Platform::Application
         void getObjectsFromQueue();
         void renderScale();
         void renderScene();
-        void setCameraHook(entt::entity _e);
+        // void setCameraHook(entt::entity _e);
         void setupCamera();
         void setupGraphics();
         void setupNetwork();
@@ -83,6 +83,7 @@ class PwngClient : public Magnum::Platform::Application
         ImGuiStyle  UIStyleSubStats_;
         ImGuiStyle  UIStyleDefault_;
 
+        // ImFont* UIFont_{nullptr};
 };
 
 #endif // PWNG_CLIENT_HPP
