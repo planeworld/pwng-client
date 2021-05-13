@@ -5,10 +5,7 @@
 #include <thread>
 
 #include <Magnum/GL/Renderer.h>
-#include <Magnum/Math/Vector2.h>
-#include <Magnum/MeshTools/Compile.h>
-#include <Magnum/Primitives/Line.h>
-#include <Magnum/Trade/MeshData.h>
+#include <Magnum/ImGuiIntegration/Context.hpp>
 
 #include <argagg/argagg.hpp>
 #include <concurrentqueue/concurrentqueue.h>
@@ -22,15 +19,16 @@
 #include "name_system.hpp"
 #include "network_manager.hpp"
 #include "pwng_client.hpp"
+#include "render_system.hpp"
 #include "ui_manager.hpp"
 
-PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate},
-                                                    TemperaturePalette_(Reg_, 256, {0.95, 0.58, 0.26}, {0.47, 0.56, 1.0})
+PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate}
 
 {
     Reg_.set<MessageHandler>();
     Reg_.set<NameSystem>(Reg_);
     Reg_.set<NetworkManager>(Reg_);
+    Reg_.set<RenderSystem>(Reg_);
     Reg_.set<UIManager>(Reg_, ImGUI_);
 
     auto& Messages = Reg_.ctx<MessageHandler>();
@@ -38,23 +36,26 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
     Messages.registerSource("col", "col");
     Messages.registerSource("net", "net");
     Messages.registerSource("prg", "prg");
+    Messages.registerSource("gfx", "gfx");
     Messages.registerSource("ui", "ui");
 
-    this->setupCamera();
     this->setupWindow();
     this->setupNetwork();
-    this->setupGraphics();
+    Reg_.ctx<RenderSystem>().setupCamera();
+    Reg_.ctx<RenderSystem>().setupGraphics();
     setSwapInterval(1);
     setMinimalLoopPeriod(1.0f/60.0f * 1000.0f);
 }
 
 void PwngClient::drawEvent()
 {
+    auto& Renderer = Reg_.ctx<RenderSystem>();
+
     GL::defaultFramebuffer.clearColor(Color4(0.0f, 0.0f, 0.0f, 1.0f));
 
     this->getObjectsFromQueue();
-    this->renderScene();
-    this->renderScale();
+    Renderer.renderScene();
+    Renderer.renderScale();
 
     this->updateUI();
     swapBuffers();
@@ -77,9 +78,11 @@ void PwngClient::mouseMoveEvent(MouseMoveEvent& Event)
     {
         if (Event.modifiers() & MouseMoveEvent::Modifier::Ctrl)
         {
-            auto& SysPos = Reg_.get<SystemPositionComponent>(Camera_);
-            auto& Pos = Reg_.get<PositionComponent>(Camera_);
-            auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
+            const entt::entity Camera = Reg_.ctx<RenderSystem>().getCamera();
+
+            auto& SysPos = Reg_.get<SystemPositionComponent>(Camera);
+            auto& Pos = Reg_.get<PositionComponent>(Camera);
+            auto& Zoom = Reg_.get<ZoomComponent>(Camera);
             if (Event.modifiers() & MouseMoveEvent::Modifier::Shift)
             {
                 if (Zoom.z - 0.01*Event.relativePosition().y()*Zoom.z > 0.0)
@@ -119,7 +122,8 @@ void PwngClient::mouseScrollEvent(MouseScrollEvent& Event)
 {
     if (!ImGUI_.handleMouseScrollEvent(Event))
     {
-        auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
+        const entt::entity Camera = Reg_.ctx<RenderSystem>().getCamera();
+        auto& Zoom = Reg_.get<ZoomComponent>(Camera);
 
         double ZoomSpeed = std::pow(10.0, Event.offset().y());
         if (Event.modifiers() & MouseScrollEvent::Modifier::Ctrl)
@@ -142,7 +146,7 @@ void PwngClient::viewportEvent(ViewportEvent& Event)
 {
     GL::defaultFramebuffer.setViewport({{}, Event.framebufferSize()});
 
-    Projection_= Magnum::Matrix3::projection(Magnum::Vector2(windowSize()));
+    Reg_.ctx<RenderSystem>().setWindowSize(Event.windowSize().x(), Event.windowSize().y());
 
     ImGUI_.relayout(Vector2(Event.windowSize()), Event.windowSize(), Event.framebufferSize());
 }
@@ -244,257 +248,6 @@ void PwngClient::getObjectsFromQueue()
     Timers_.QueueAvg.addValue(Timers_.Queue.elapsed());
 }
 
-// void PwngClient::setCameraHook(entt::entity _e)
-// {
-//     auto& h = Reg_.get<HookComponent>(Camera_);
-//     h.e = _e;
-//     auto& SysPos = Reg_.get<SystemPositionComponent>(Camera_);
-//     auto& Pos = Reg_.get<PositionComponent>(Camera_);
-
-//     SysPos = Reg_.get<SystemPositionComponent>(_e);
-//     Pos = Reg_.get<PositionComponent>(_e);
-// }
-
-void PwngClient::renderScale()
-{
-    auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
-
-    constexpr double SCALE_BAR_SIZE_MAX = 0.2; // 20% of display width
-
-    double BarLength{1.0};
-    // double Ratio = windowSize().x() * SCALE_BAR_SIZE_MAX / (BarLength*Zoom.z);
-    double Ratio = windowSize().x() * SCALE_BAR_SIZE_MAX / Zoom.z;
-    if (Ratio > 9.46e21)
-    {
-        BarLength = 9.46e21; // One million lightyears
-        ScaleUnit_ = ScaleUnitE::MLY;
-    }
-    else if (Ratio > 9.46e15)
-    {
-        BarLength = 9.46e15; // One lightyear
-        ScaleUnit_ = ScaleUnitE::LY;
-    }
-    else if (Ratio > 1.0e9)
-    {
-        BarLength = 1.0e9;
-        ScaleUnit_ = ScaleUnitE::MKM;
-    }
-    else if (Ratio > 1.0e3)
-    {
-        BarLength = 1.0e3;
-        ScaleUnit_ = ScaleUnitE::KM;
-    }
-    else
-    {
-        BarLength = 1.0;
-        ScaleUnit_ = ScaleUnitE::M;
-    }
-
-    double Scale = windowSize().x() * SCALE_BAR_SIZE_MAX / (BarLength*Zoom.z);
-
-    Scale_ = int(std::log10(Scale));
-
-    Shader_.setTransformationProjectionMatrix(
-        Projection_ * Matrix3::scaling(
-            Vector2(BarLength*0.5*std::pow(10, Scale_)*Zoom.z,
-                    0.5 * windowSize().y() - 10)
-    ));
-
-    Shader_.setColor({0.8, 0.8, 1.0})
-           .draw(ScaleLineShapeH_);
-
-    Shader_.setTransformationProjectionMatrix(
-        Projection_ *
-        Matrix3::translation(
-            Vector2(- BarLength*0.5*std::pow(10, Scale_)*Zoom.z,
-                    0.5 * windowSize().y() - 10)) *
-        Matrix3::scaling(
-            Vector2(1.0, 7.0))
-    );
-    Shader_.draw(ScaleLineShapeV_);
-
-    Shader_.setTransformationProjectionMatrix(
-        Projection_ *
-        Matrix3::translation(
-            Vector2(BarLength*0.5*std::pow(10, Scale_)*Zoom.z,
-                    0.5 * windowSize().y() - 10)) *
-        Matrix3::scaling(
-            Vector2(1.0, 7.0))
-    );
-    Shader_.draw(ScaleLineShapeV_);
-}
-
-void PwngClient::renderScene()
-{
-    GL::defaultFramebuffer.setViewport({{}, windowSize()});
-
-    auto& HookPosSys = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
-    auto* HookPos    = Reg_.try_get<PositionComponent>(Reg_.get<HookComponent>(Camera_).e);
-    auto& CamPosSys = Reg_.get<SystemPositionComponent>(Camera_);
-    auto& CamPos = Reg_.get<PositionComponent>(Camera_);
-    auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
-
-    if (Zoom.c < Zoom.s && Zoom.t != Zoom.z)
-    {
-        Zoom.z += Zoom.i;
-        Zoom.c++;
-    }
-    else
-    {
-        Zoom.c = 0;
-        Zoom.t = Zoom.z;
-    }
-    if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
-    else if (Zoom.z > 100.0) Zoom.z = 100.0;
-
-    // Remove all "inside" tags from objects
-    // After that, test all objects for camera viewport and tag
-    // appropriatly
-    Timers_.ViewportTest.start();
-
-    Reg_.clear<InsideViewportTag>();
-
-    const double ScreenX = windowSize().x();
-    const double ScreenY = windowSize().y();
-
-    Reg_.view<SystemPositionComponent>().each(
-        [&](auto _e, const auto& _p_s)
-        {
-            auto x = _p_s.x;
-            auto y = _p_s.y;
-
-            x += CamPosSys.x - HookPosSys.x;
-            y += CamPosSys.y - HookPosSys.y;
-
-            x += CamPos.x;
-            y += CamPos.y;
-
-            auto* p = Reg_.try_get<PositionComponent>(_e);
-            if (p != nullptr)
-            {
-                x += p->x;
-                y += p->y;
-            }
-            if (HookPos != nullptr)
-            {
-                x -= HookPos->x;
-                y -= HookPos->y;
-            }
-
-            x *= Zoom.z;
-            y *= Zoom.z;
-
-            if ((x+0.5*ScreenX > 0) && (x <= 0.5*ScreenX) &&
-                (y+0.5*ScreenY > 0) && (y <= 0.5*ScreenY))
-            {
-                Reg_.emplace<InsideViewportTag>(_e);
-            }
-        });
-    Timers_.ViewportTest.stop();
-    Timers_.ViewportTestAvg.addValue(Timers_.ViewportTest.elapsed());
-
-    Timers_.Render.start();
-    Reg_.view<SystemPositionComponent, RadiusComponent, StarDataComponent, InsideViewportTag>().each(
-        [&](auto _e, const auto& _p, const auto& _r, const auto& _s)
-    {
-        auto x = _p.x;
-        auto y = _p.y;
-
-        x += CamPosSys.x - HookPosSys.x;
-        y += CamPosSys.y - HookPosSys.y;
-
-        x += CamPos.x;
-        y += CamPos.y;
-
-        if (HookPos != nullptr)
-        {
-            x -= HookPos->x;
-            y -= HookPos->y;
-        }
-
-        x *= Zoom.z;
-        y *= Zoom.z;
-
-        auto r = _r.r;
-        r *= Zoom.z * StarsDisplayScaleFactor_;
-        if (r < StarsDisplaySizeMin_) r=StarsDisplaySizeMin_;
-
-        Shader_.setTransformationProjectionMatrix(
-            Projection_ *
-            Matrix3::translation(Vector2(x, y)) *
-            Matrix3::scaling(Vector2(r, r))
-        );
-
-        Shader_.setColor(TemperaturePalette_.getColorClip((_s.Temperature-2000.0)/45000.0));
-        Shader_.draw(CircleShape_);
-    });
-
-    Reg_.view<SystemPositionComponent, RadiusComponent, PositionComponent, InsideViewportTag>(entt::exclude<StarDataComponent>).each(
-        [&](auto _e, const auto& _sp, const auto& _r, const auto& _p)
-    {
-        auto x = _sp.x;
-        auto y = _sp.y;
-
-        x += CamPosSys.x - HookPosSys.x;
-        y += CamPosSys.y - HookPosSys.y;
-        x += CamPos.x - HookPos->x;
-        y += CamPos.y - HookPos->y;
-        x += _p.x;
-        y += _p.y;
-        x *= Zoom.z;
-        y *= Zoom.z;
-
-        auto r = _r.r;
-        r *= Zoom.z * StarsDisplayScaleFactor_;
-        if (r < StarsDisplaySizeMin_) r=StarsDisplaySizeMin_;
-
-        Shader_.setTransformationProjectionMatrix(
-            Projection_ *
-            Matrix3::translation(Vector2(x, y)) *
-            Matrix3::scaling(Vector2(r, r))
-        );
-
-        Shader_.setColor({0.0, 0.0, 1.0});
-        Shader_.draw(CircleShape_);
-    });
-
-    Timers_.Render.stop();
-    Timers_.RenderAvg.addValue(Timers_.Render.elapsed());
-}
-
-void PwngClient::setupCamera()
-{
-    Camera_ = Reg_.create();
-    auto& HookDummy = Reg_.emplace<HookDummyComponent>(Camera_);
-    HookDummy.e = Reg_.create();
-    Reg_.emplace<PositionComponent>(HookDummy.e);
-    Reg_.emplace<SystemPositionComponent>(HookDummy.e);
-
-    auto& Hook = Reg_.emplace<HookComponent>(Camera_);
-    Hook.e = HookDummy.e;
-
-    Reg_.emplace<PositionComponent>(Camera_);
-    Reg_.emplace<SystemPositionComponent>(Camera_);
-    Reg_.emplace<ZoomComponent>(Camera_);
-}
-
-void PwngClient::setupGraphics()
-{
-    Shader_ = Shaders::Flat2D{};
-    CircleShape_ = MeshTools::compile(Primitives::circle2DSolid(100));
-    ScaleLineShapeH_ = MeshTools::compile(Primitives::line2D({-1.0, 1.0},
-                                                             { 1.0, 1.0}));
-    ScaleLineShapeV_ = MeshTools::compile(Primitives::line2D({ 1.0, -1.0},
-                                                             { 1.0,  1.0}));
-
-    TemperaturePalette_.addSupportPoint(0.03, {1.0, 0.8, 0.21});
-    TemperaturePalette_.addSupportPoint(0.11, {1.0, 0.93, 0.27});
-    TemperaturePalette_.addSupportPoint(0.15, {1.0, 0.97, 0.7});
-    TemperaturePalette_.addSupportPoint(0.19, {0.82, 0.92, 1.0});
-    TemperaturePalette_.addSupportPoint(0.42, {0.4, 0.74, 1.0});
-    TemperaturePalette_.buildLuT();
-}
-
 void PwngClient::setupNetwork()
 {
     auto& Messages = Reg_.ctx<MessageHandler>();
@@ -552,6 +305,7 @@ void PwngClient::updateUI()
 {
     auto& Messages = Reg_.ctx<MessageHandler>();
     auto& Network = Reg_.ctx<NetworkManager>();
+    auto Camera = Reg_.ctx<RenderSystem>().getCamera();
 
     GL::Renderer::enable(GL::Renderer::Feature::Blending);
     GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
@@ -598,7 +352,7 @@ void PwngClient::updateUI()
 
             ImGui::Unindent();
             ImGui::Indent();
-                UI.processCameraHooks(Camera_);
+                UI.processCameraHooks(Camera);
             ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Server control");
             ImGui::Indent();
@@ -630,15 +384,15 @@ void PwngClient::updateUI()
             ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Display");
             ImGui::Indent();
-                auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
-                ImGui::SliderFloat("Stars: Minimum Display Size", &StarsDisplaySizeMin_, 0.1, 20.0);
-                ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, std::clamp(1.0e-7/Zoom.z, 5.0, 1.0e11));
-                if (StarsDisplayScaleFactor_ >  1.0e-7/Zoom.z) StarsDisplayScaleFactor_= 1.0e-7/Zoom.z;
-                if (StarsDisplayScaleFactor_ <  1.0) StarsDisplayScaleFactor_= 1.0;
+                auto& Zoom = Reg_.get<ZoomComponent>(Camera);
+                // ImGui::SliderFloat("Stars: Minimum Display Size", &StarsDisplaySizeMin_, 0.1, 20.0);
+                // ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, std::clamp(1.0e-7/Zoom.z, 5.0, 1.0e11));
+                // if (StarsDisplayScaleFactor_ >  1.0e-7/Zoom.z) StarsDisplayScaleFactor_= 1.0e-7/Zoom.z;
+                // if (StarsDisplayScaleFactor_ <  1.0) StarsDisplayScaleFactor_= 1.0;
             ImGui::Unindent();
             UI.processObjectLabels();
         ImGui::End();
-        UI.displayObjectLabels(Camera_);
+        UI.displayObjectLabels(Camera);
         UI.displayHelp();
         UI.displayScale(Scale_, ScaleUnit_);
     }

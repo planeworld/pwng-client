@@ -90,6 +90,8 @@ struct ZoomComponent
     int    s{10};      // Zoom speed, steps (frames) to target
 };
 
+struct DynamicObjectTag{};
 struct InsideViewportTag{};
+struct StaticObjectTag{};
 
 #endif // COMPONENTS_HPP

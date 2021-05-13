@@ -5,6 +5,7 @@ set(HEADERS
   managers/network_manager.hpp
   managers/ui_manager.hpp
   systems/name_system.hpp
+  systems/render_system.hpp
   avg_filter.hpp
   color_palette.hpp
   components.hpp
@@ -19,6 +20,7 @@ set(SOURCES
   ${ImGui_INCLUDE_DIR}/imgui.cpp
   managers/network_manager.cpp
   managers/ui_manager.cpp
+  systems/render_system.cpp
   pwng_client.cpp
 )
 

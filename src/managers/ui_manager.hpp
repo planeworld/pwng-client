@@ -16,9 +16,9 @@ class UIManager
 
     public:
 
-        UIManager(entt::registry& _Reg,
-                  Magnum::ImGuiIntegration::Context& _ImGUI) :
-                  Reg_(_Reg), ImGUI_(_ImGUI) {}
+        explicit UIManager(entt::registry& _Reg,
+                           Magnum::ImGuiIntegration::Context& _ImGUI) :
+                           Reg_(_Reg), ImGUI_(_ImGUI) {}
 
         void displayHelp();
         void displayObjectLabels(entt::entity _Cam);
