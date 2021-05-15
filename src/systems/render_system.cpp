@@ -171,6 +171,13 @@ void RenderSystem::renderScene()
             y -= HookPos->y;
         }
 
+        auto* p = Reg_.try_get<PositionComponent>(_e);
+        if (p != nullptr)
+        {
+            x += p->x;
+            y += p->y;
+        }
+
         x *= Zoom.z;
         y *= Zoom.z;
 
