@@ -153,8 +153,8 @@ void RenderSystem::renderScene()
     // Timers_.ViewportTestAvg.addValue(Timers_.ViewportTest.elapsed());
 
     // Timers_.Render.start();
-    Reg_.view<SystemPositionComponent, RadiusComponent, StarDataComponent, InsideViewportTag>().each(
-        [&](auto _e, const auto& _p, const auto& _r, const auto& _s)
+    Reg_.view<SystemPositionComponent, RadiusComponent, InsideViewportTag>().each(
+        [&](auto _e, const auto& _p, const auto& _r)
     {
         auto x = _p.x;
         auto y = _p.y;
@@ -191,36 +191,15 @@ void RenderSystem::renderScene()
             Matrix3::scaling(Vector2(r, r))
         );
 
-        Shader_.setColor(TemperaturePalette_.getColorClip((_s.Temperature-2000.0)/45000.0));
-        Shader_.draw(CircleShape_);
-    });
-
-    Reg_.view<SystemPositionComponent, RadiusComponent, PositionComponent, InsideViewportTag>(entt::exclude<StarDataComponent>).each(
-        [&](auto _e, const auto& _sp, const auto& _r, const auto& _p)
-    {
-        auto x = _sp.x;
-        auto y = _sp.y;
-
-        x += CamPosSys.x - HookPosSys.x;
-        y += CamPosSys.y - HookPosSys.y;
-        x += CamPos.x - HookPos->x;
-        y += CamPos.y - HookPos->y;
-        x += _p.x;
-        y += _p.y;
-        x *= Zoom.z;
-        y *= Zoom.z;
-
-        auto r = _r.r;
-        r *= Zoom.z * StarsDisplayScaleFactor_;
-        if (r < StarsDisplaySizeMin_) r=StarsDisplaySizeMin_;
-
-        Shader_.setTransformationProjectionMatrix(
-            Projection_ *
-            Matrix3::translation(Vector2(x, y)) *
-            Matrix3::scaling(Vector2(r, r))
-        );
-
-        Shader_.setColor({0.0, 0.0, 1.0});
+        auto* s = Reg_.try_get<StarDataComponent>(_e);
+        if (s == nullptr)
+        {
+            Shader_.setColor(TemperaturePalette_.getColorClip((_s.Temperature-2000.0)/45000.0));
+        }
+        else
+        {
+            Shader_.setColor({0.0, 0.0, 1.0});
+        }
         Shader_.draw(CircleShape_);
     });
 
