@@ -192,9 +192,9 @@ void RenderSystem::renderScene()
         );
 
         auto* s = Reg_.try_get<StarDataComponent>(_e);
-        if (s == nullptr)
+        if (s != nullptr)
         {
-            Shader_.setColor(TemperaturePalette_.getColorClip((_s.Temperature-2000.0)/45000.0));
+            Shader_.setColor(TemperaturePalette_.getColorClip((s->Temperature-2000.0)/45000.0));
         }
         else
         {
