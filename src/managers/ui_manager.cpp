@@ -19,7 +19,7 @@ void UIManager::displayHelp()
     if (ShowHelp_)
     {
         ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2,
-                                        ImGui::GetIO().DisplaySize.y / 2), ImGuiCond_Always, ImVec2(0.5f,0.5f));
+                                       ImGui::GetIO().DisplaySize.y / 2), ImGuiCond_Always, ImVec2(0.5f,0.5f));
         ImGui::Begin("Help", &CloseButton, WindowFlags);
             ImGui::Text("Move:        Mouse move + LCtrl");
             ImGui::Text("Zoom:        Mouse wheel");

@@ -43,6 +43,8 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
     this->setupNetwork();
     Reg_.ctx<RenderSystem>().setupCamera();
     Reg_.ctx<RenderSystem>().setupGraphics();
+    Reg_.ctx<RenderSystem>().setupMainDisplayFBO();
+    Reg_.ctx<RenderSystem>().setupMainDisplayMesh();
     setSwapInterval(1);
     setMinimalLoopPeriod(1.0f/60.0f * 1000.0f);
 }
@@ -50,8 +52,6 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
 void PwngClient::drawEvent()
 {
     auto& Renderer = Reg_.ctx<RenderSystem>();
-
-    GL::defaultFramebuffer.clearColor(Color4(0.0f, 0.0f, 0.0f, 1.0f));
 
     this->getObjectsFromQueue();
     Renderer.renderScene();
@@ -144,8 +144,6 @@ void PwngClient::textInputEvent(TextInputEvent& Event)
 
 void PwngClient::viewportEvent(ViewportEvent& Event)
 {
-    GL::defaultFramebuffer.setViewport({{}, Event.framebufferSize()});
-
     Reg_.ctx<RenderSystem>().setWindowSize(Event.windowSize().x(), Event.windowSize().y());
 
     ImGUI_.relayout(Vector2(Event.windowSize()), Event.windowSize(), Event.framebufferSize());
@@ -294,6 +292,11 @@ void PwngClient::setupWindow()
     // io.Fonts->AddFontFromFileTTF("/home/bfeld/projects/pwng/client/3rdparty/imgui/misc/fonts/MonospaceTypewriter.ttf", 20.0f);
     // io.Fonts->AddFontFromFileTTF("/home/bfeld/projects/pwng/client/3rdparty/imgui/misc/fonts/Roboto-Light.ttf", 20.0f);
     // io.Fonts->Build();
+    GL::Renderer::enable(GL::Renderer::Feature::Blending);
+    GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
+    GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
+    GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
+    GL::Renderer::disable(GL::Renderer::Feature::StencilTest);
 
     GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add,
     GL::Renderer::BlendEquation::Add);
@@ -305,13 +308,14 @@ void PwngClient::updateUI()
 {
     auto& Messages = Reg_.ctx<MessageHandler>();
     auto& Network = Reg_.ctx<NetworkManager>();
-    auto Camera = Reg_.ctx<RenderSystem>().getCamera();
+    auto& Renderer = Reg_.ctx<RenderSystem>();
+    auto Camera = Renderer.getCamera();
 
-    GL::Renderer::enable(GL::Renderer::Feature::Blending);
-    GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
-    GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
-    GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
-    GL::Renderer::disable(GL::Renderer::Feature::StencilTest);
+    // GL::Renderer::enable(GL::Renderer::Feature::Blending);
+    // GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
+    // GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
+    // GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
+    // GL::Renderer::disable(GL::Renderer::Feature::StencilTest);
 
     ImGUI_.newFrame();
     {
@@ -394,7 +398,7 @@ void PwngClient::updateUI()
         ImGui::End();
         UI.displayObjectLabels(Camera);
         UI.displayHelp();
-        UI.displayScale(Scale_, ScaleUnit_);
+        UI.displayScale(Renderer.getScale(), Renderer.getScaleUnit());
     }
     ImGUI_.drawFrame();
 

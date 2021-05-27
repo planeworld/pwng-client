@@ -4,6 +4,8 @@ find_package(RapidJSON)
 set(HEADERS
   managers/network_manager.hpp
   managers/ui_manager.hpp
+  shaders/blur_shader_5x1.hpp
+  shaders/main_display_shader.hpp
   systems/name_system.hpp
   systems/render_system.hpp
   avg_filter.hpp
@@ -13,6 +15,7 @@ set(HEADERS
   performance_timers.hpp
   pwng_client.hpp
   scale_unit.hpp
+  shader_path.hpp
   timer.hpp
 )
 
@@ -28,6 +31,7 @@ add_executable(pwng-client ${LIB_NOISE_HEADERS} ${HEADERS} ${SOURCES})
 
 target_include_directories(pwng-client PRIVATE "${PROJECT_SOURCE_DIR}/src/")
 target_include_directories(pwng-client PRIVATE "${PROJECT_SOURCE_DIR}/src/managers")
+target_include_directories(pwng-client PRIVATE "${PROJECT_SOURCE_DIR}/src/shaders")
 target_include_directories(pwng-client PRIVATE "${PROJECT_SOURCE_DIR}/src/systems")
 target_include_directories(pwng-client PRIVATE "${PROJECT_SOURCE_DIR}/install/include/")
 target_include_directories(pwng-client PRIVATE ${MAGNUM_INCLUDE_DIR})
@@ -49,3 +53,4 @@ target_link_libraries(pwng-client PRIVATE
 set_property(TARGET pwng-client PROPERTY CXX_STANDARD 17)
 
 install(TARGETS pwng-client DESTINATION bin)
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/src/shaders/glsl/" DESTINATION "${PROJECT_SOURCE_DIR}/install/share/shaders/")

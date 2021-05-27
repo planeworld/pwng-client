@@ -49,10 +49,6 @@ class PwngClient : public Magnum::Platform::Application
         //--- Graphics ---//
         std::unordered_map<std::uint32_t, entt::entity> Id2EntityMap_;
 
-        int Scale_{0};
-
-        ScaleUnitE ScaleUnit_{ScaleUnitE::LY};
-
         //--- UI ---//
         Magnum::ImGuiIntegration::Context ImGUI_{Magnum::NoCreate};
         ImGuiStyle* UIStyle_{nullptr};

@@ -1,11 +1,14 @@
 #include "render_system.hpp"
 
+#include <Magnum/GL/Renderer.h>
+#include <Magnum/GL/TextureFormat.h>
 #include <Magnum/MeshTools/Compile.h>
 #include <Magnum/Primitives/Circle.h>
 #include <Magnum/Primitives/Line.h>
 #include <Magnum/Trade/MeshData.h>
 
 #include "components.hpp"
+#include "message_handler.hpp"
 
 using namespace Magnum;
 
@@ -21,8 +24,7 @@ void RenderSystem::renderScale()
     constexpr double SCALE_BAR_SIZE_MAX = 0.2; // 20% of display width
 
     double BarLength{1.0};
-    // double Ratio = WindowSizeX_ * SCALE_BAR_SIZE_MAX / (BarLength*Zoom.z);
-    double Ratio = WindowSizeX_ * SCALE_BAR_SIZE_MAX / Zoom.z;
+    double Ratio = (SCALE_BAR_SIZE_MAX * WindowSizeX_) / Zoom.z;
     if (Ratio > 9.46e21)
     {
         BarLength = 9.46e21; // One million lightyears
@@ -54,7 +56,7 @@ void RenderSystem::renderScale()
     Scale_ = int(std::log10(Scale));
 
     Shader_.setTransformationProjectionMatrix(
-        Projection_ * Matrix3::scaling(
+        ProjectionWindow_ * Matrix3::scaling(
             Vector2(BarLength*0.5*std::pow(10, Scale_)*Zoom.z,
                     0.5 * WindowSizeY_ - 10)
     ));
@@ -63,7 +65,7 @@ void RenderSystem::renderScale()
            .draw(ScaleLineShapeH_);
 
     Shader_.setTransformationProjectionMatrix(
-        Projection_ *
+        ProjectionWindow_ *
         Matrix3::translation(
             Vector2(- BarLength*0.5*std::pow(10, Scale_)*Zoom.z,
                     0.5 * WindowSizeY_ - 10)) *
@@ -73,7 +75,7 @@ void RenderSystem::renderScale()
     Shader_.draw(ScaleLineShapeV_);
 
     Shader_.setTransformationProjectionMatrix(
-        Projection_ *
+        ProjectionWindow_ *
         Matrix3::translation(
             Vector2(BarLength*0.5*std::pow(10, Scale_)*Zoom.z,
                     0.5 * WindowSizeY_ - 10)) *
@@ -85,7 +87,18 @@ void RenderSystem::renderScale()
 
 void RenderSystem::renderScene()
 {
-    GL::defaultFramebuffer.setViewport({{}, {WindowSizeX_, WindowSizeY_}});
+
+    //----------------------------------
+    // Adjust viewports and projections
+    //----------------------------------
+    // FBO viewport may not exceed maximum size of underlying texture. Above
+    // this size, texture won't be pixel perfect but interpolated
+    //
+    GL::Renderer::setScissor({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}});
+
+    FBOMainDisplayBack_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+                        .setViewport({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}})
+                        .bind();
 
     auto& HookPosSys = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
     auto* HookPos    = Reg_.try_get<PositionComponent>(Reg_.get<HookComponent>(Camera_).e);
@@ -183,10 +196,13 @@ void RenderSystem::renderScene()
 
         auto r = _r.r;
         r *= Zoom.z * StarsDisplayScaleFactor_;
-        if (r < StarsDisplaySizeMin_) r=StarsDisplaySizeMin_;
+        if (r < StarsDisplaySizeMin_)
+        {
+            r=StarsDisplaySizeMin_;
+        }
 
         Shader_.setTransformationProjectionMatrix(
-            Projection_ *
+            ProjectionScene_ *
             Matrix3::translation(Vector2(x, y)) *
             Matrix3::scaling(Vector2(r, r))
         );
@@ -202,6 +218,38 @@ void RenderSystem::renderScene()
         }
         Shader_.draw(CircleShape_);
     });
+
+
+    FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+                         .setViewport({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}})
+                         .bind();
+
+    ShaderBlur5x1_.bindTexture(*TexMainDisplayBack_)
+                  .setHorizontal(true)
+                  .draw(MeshBlur5x1_);
+
+    std::swap(FBOMainDisplayFront_, FBOMainDisplayBack_);
+    std::swap(TexMainDisplayFront_, TexMainDisplayBack_);
+
+    FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+                         .setViewport({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}})
+                         .bind();
+
+    ShaderBlur5x1_.bindTexture(*TexMainDisplayBack_)
+                  .setHorizontal(false)
+                  .draw(MeshBlur5x1_);
+
+    GL::Renderer::setScissor({{0, 0}, {WindowSizeX_, WindowSizeY_}});
+
+    GL::defaultFramebuffer.clearColor(Color4(0.0f, 0.0f, 0.0f, 1.0f));
+    GL::defaultFramebuffer.setViewport({{}, {WindowSizeX_, WindowSizeY_}});
+    GL::defaultFramebuffer.bind();
+
+    ShaderMainDisplay_.bindTexture(*TexMainDisplayFront_)
+                      .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_,
+                                   (RenderResFactor_*WindowSizeY_)/TextureSizeMax_)
+                      .draw(MeshMainDisplay_);
+
 
     // Timers_.Render.stop();
     // Timers_.RenderAvg.addValue(Timers_.Render.elapsed());
@@ -225,6 +273,26 @@ void RenderSystem::setupCamera()
 
 void RenderSystem::setupGraphics()
 {
+    GLint TextureSizeMax; glGetIntegerv (GL_MAX_TEXTURE_SIZE, &TextureSizeMax);
+    DBLK(Reg_.ctx<MessageHandler>().report("gfx", "Maximum texture size: "
+                                           + std::to_string(TextureSizeMax)
+                                           +"x"
+                                           + std::to_string(TextureSizeMax),
+                                           MessageHandler::DEBUG_L1);)
+    if (TextureSizeMax > TEXTURE_SIZE_MAX)
+    {
+        TextureSizeMax_ = TEXTURE_SIZE_MAX;
+        DBLK(Reg_.ctx<MessageHandler>().report("gfx", "More than enough, using maximum texture size of "
+                                            + std::to_string(TextureSizeMax_)
+                                            +"x"
+                                            + std::to_string(TextureSizeMax_),
+                                            MessageHandler::DEBUG_L1);)
+    }
+    else
+    {
+        TextureSizeMax_ = TextureSizeMax;
+    }
+
     Shader_ = Shaders::Flat2D{};
     CircleShape_ = MeshTools::compile(Primitives::circle2DSolid(100));
     ScaleLineShapeH_ = MeshTools::compile(Primitives::line2D({-1.0, 1.0},
@@ -240,9 +308,81 @@ void RenderSystem::setupGraphics()
     TemperaturePalette_.buildLuT();
 }
 
+void RenderSystem::setupMainDisplayFBO()
+{
+    FBOMainDisplay0_ = GL::Framebuffer{{{0, 0},{TextureSizeMax_, TextureSizeMax_}}};
+    TexMainDisplay0_ = GL::Texture2D{};
+
+    TexMainDisplay0_.setMagnificationFilter(GL::SamplerFilter::Linear)
+                    .setMinificationFilter(GL::SamplerFilter::Linear, GL::SamplerMipmap::Linear)
+                    .setWrapping(GL::SamplerWrapping::ClampToBorder)
+                    .setMaxAnisotropy(GL::Sampler::maxMaxAnisotropy())
+                    .setStorage(1, GL::TextureFormat::RGBA8, {TextureSizeMax_, TextureSizeMax_});
+
+    FBOMainDisplay0_.attachTexture(GL::Framebuffer::ColorAttachment{0}, TexMainDisplay0_, 0)
+                    .clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f));
+
+    FBOMainDisplay1_ = GL::Framebuffer{{{0, 0},{TextureSizeMax_, TextureSizeMax_}}};
+    TexMainDisplay1_ = GL::Texture2D{};
+
+    TexMainDisplay1_.setMagnificationFilter(GL::SamplerFilter::Linear)
+                    .setMinificationFilter(GL::SamplerFilter::Linear, GL::SamplerMipmap::Linear)
+                    .setWrapping(GL::SamplerWrapping::ClampToBorder)
+                    .setMaxAnisotropy(GL::Sampler::maxMaxAnisotropy())
+                    .setStorage(1, GL::TextureFormat::RGBA8, {TextureSizeMax_, TextureSizeMax_});
+
+    FBOMainDisplay1_.attachTexture(GL::Framebuffer::ColorAttachment{0}, TexMainDisplay1_, 0)
+                    .clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f));
+
+    ShaderMainDisplay_ = MainDisplayShader{};
+    ShaderMainDisplay_.bindTexture(TexMainDisplay1_);
+
+    ShaderBlur5x1_ = BlurShader5x1{};
+    ShaderBlur5x1_.setHorizontal(true)
+                  .bindTexture(TexMainDisplay0_);
+
+    FBOMainDisplayBack_ = &FBOMainDisplay0_;
+    FBOMainDisplayFront_ = &FBOMainDisplay1_;
+
+    TexMainDisplayBack_ = &TexMainDisplay0_;
+    TexMainDisplayFront_ = &TexMainDisplay1_;
+}
+
+void RenderSystem::setupMainDisplayMesh()
+{
+    MeshMainDisplay_ = GL::Mesh{};
+    MeshMainDisplay_.setCount(3)
+                    .setPrimitive(GL::MeshPrimitive::Triangles);
+    MeshBlur5x1_ = GL::Mesh{};
+    MeshBlur5x1_.setCount(6)
+                .setPrimitive(GL::MeshPrimitive::Triangles);
+}
+
 void RenderSystem::setWindowSize(const double _x, const double _y)
 {
     WindowSizeX_ = _x;
     WindowSizeY_ = _y;
-    Projection_= Magnum::Matrix3::projection(Magnum::Vector2(_x, _y));
+
+    RenderResFactor_ = RenderResFactorTarget_;
+
+    if (WindowSizeX_ >= WindowSizeY_)
+    {
+        if (RenderResFactor_ * WindowSizeX_ > TextureSizeMax_)
+        {
+            RenderResFactor_ = double(TextureSizeMax_) / WindowSizeX_;
+        }
+    }
+    else
+    {
+        if (RenderResFactor_ * WindowSizeY_ > TextureSizeMax_)
+        {
+            RenderResFactor_ = double(TextureSizeMax_) / WindowSizeY_;
+        }
+    }
+    DBLK(Reg_.ctx<MessageHandler>().report("gfx", "Setting render resolution factor to "
+                                           + std::to_string(RenderResFactor_),
+                                           MessageHandler::DEBUG_L1);)
+
+    ProjectionScene_= Magnum::Matrix3::projection(Magnum::Vector2(_x, _y));
+    ProjectionWindow_= Magnum::Matrix3::projection(Magnum::Vector2(_x, _y));
 }
