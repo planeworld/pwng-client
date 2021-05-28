@@ -6,7 +6,7 @@ out vec4 frag_color;
 // Normal distribution (mu=0, sigma=1) at x=0,1,2
 // Hence, blurring uses all values within 2-sigma, which is
 // 95.45% of the relevant information.
-const float weight[3] = float[] (0.41, 0.24, 0.05);
+const float weight[3] = float[] (0.42, 0.24, 0.05);
 
 void main()
 {

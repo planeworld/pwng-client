@@ -96,9 +96,9 @@ void RenderSystem::renderScene()
     //
     GL::Renderer::setScissor({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}});
 
-    FBOMainDisplayBack_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
-                        .setViewport({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}})
-                        .bind();
+    FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+                         .setViewport({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}})
+                         .bind();
 
     auto& HookPosSys = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
     auto* HookPos    = Reg_.try_get<PositionComponent>(Reg_.get<HookComponent>(Camera_).e);
@@ -196,9 +196,11 @@ void RenderSystem::renderScene()
 
         auto r = _r.r;
         r *= Zoom.z * StarsDisplayScaleFactor_;
-        if (r < StarsDisplaySizeMin_)
+        double RenderScale = 1.0;
+        if (RenderResFactor_ < 1.0) RenderScale = 1.0/RenderResFactor_;
+        if (r < StarsDisplaySizeMin_*RenderScale)
         {
-            r=StarsDisplaySizeMin_;
+            r=StarsDisplaySizeMin_*RenderScale;
         }
 
         Shader_.setTransformationProjectionMatrix(
@@ -219,25 +221,7 @@ void RenderSystem::renderScene()
         Shader_.draw(CircleShape_);
     });
 
-
-    FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
-                         .setViewport({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}})
-                         .bind();
-
-    ShaderBlur5x1_.bindTexture(*TexMainDisplayBack_)
-                  .setHorizontal(true)
-                  .draw(MeshBlur5x1_);
-
-    std::swap(FBOMainDisplayFront_, FBOMainDisplayBack_);
-    std::swap(TexMainDisplayFront_, TexMainDisplayBack_);
-
-    FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
-                         .setViewport({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}})
-                         .bind();
-
-    ShaderBlur5x1_.bindTexture(*TexMainDisplayBack_)
-                  .setHorizontal(false)
-                  .draw(MeshBlur5x1_);
+    this->blurSceneSSAA();
 
     GL::Renderer::setScissor({{0, 0}, {WindowSizeX_, WindowSizeY_}});
 
@@ -306,10 +290,8 @@ void RenderSystem::setupGraphics()
     TemperaturePalette_.addSupportPoint(0.19, {0.82, 0.92, 1.0});
     TemperaturePalette_.addSupportPoint(0.42, {0.4, 0.74, 1.0});
     TemperaturePalette_.buildLuT();
-}
 
-void RenderSystem::setupMainDisplayFBO()
-{
+    //--- FBOs ---//
     FBOMainDisplay0_ = GL::Framebuffer{{{0, 0},{TextureSizeMax_, TextureSizeMax_}}};
     TexMainDisplay0_ = GL::Texture2D{};
 
@@ -346,10 +328,8 @@ void RenderSystem::setupMainDisplayFBO()
 
     TexMainDisplayBack_ = &TexMainDisplay0_;
     TexMainDisplayFront_ = &TexMainDisplay1_;
-}
 
-void RenderSystem::setupMainDisplayMesh()
-{
+    //--- Meshes ---//
     MeshMainDisplay_ = GL::Mesh{};
     MeshMainDisplay_.setCount(3)
                     .setPrimitive(GL::MeshPrimitive::Triangles);
@@ -363,6 +343,43 @@ void RenderSystem::setWindowSize(const double _x, const double _y)
     WindowSizeX_ = _x;
     WindowSizeY_ = _y;
 
+    this->updateRenderResFactor();
+
+    ProjectionScene_= Magnum::Matrix3::projection(Magnum::Vector2(_x, _y));
+    ProjectionWindow_= Magnum::Matrix3::projection(Magnum::Vector2(_x, _y));
+}
+
+void RenderSystem::blurSceneSSAA()
+{
+    auto n = int(RenderResFactor_+0.5)/2;
+    for (auto i=0; i<n; ++i)
+    {
+        std::swap(FBOMainDisplayFront_, FBOMainDisplayBack_);
+        std::swap(TexMainDisplayFront_, TexMainDisplayBack_);
+
+        FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+                            .setViewport({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}})
+                            .bind();
+
+        ShaderBlur5x1_.bindTexture(*TexMainDisplayBack_)
+                      .setHorizontal(true)
+                      .draw(MeshBlur5x1_);
+
+        std::swap(FBOMainDisplayFront_, FBOMainDisplayBack_);
+        std::swap(TexMainDisplayFront_, TexMainDisplayBack_);
+
+        FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+                            .setViewport({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}})
+                            .bind();
+
+        ShaderBlur5x1_.bindTexture(*TexMainDisplayBack_)
+                      .setHorizontal(false)
+                      .draw(MeshBlur5x1_);
+    }
+}
+
+void RenderSystem::updateRenderResFactor()
+{
     RenderResFactor_ = RenderResFactorTarget_;
 
     if (WindowSizeX_ >= WindowSizeY_)
@@ -382,7 +399,4 @@ void RenderSystem::setWindowSize(const double _x, const double _y)
     DBLK(Reg_.ctx<MessageHandler>().report("gfx", "Setting render resolution factor to "
                                            + std::to_string(RenderResFactor_),
                                            MessageHandler::DEBUG_L1);)
-
-    ProjectionScene_= Magnum::Matrix3::projection(Magnum::Vector2(_x, _y));
-    ProjectionWindow_= Magnum::Matrix3::projection(Magnum::Vector2(_x, _y));
 }

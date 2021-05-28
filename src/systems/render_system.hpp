@@ -37,18 +37,20 @@ class RenderSystem
 
         void renderScale();
         void renderScene();
+        void setRenderResFactor(const double _f) {RenderResFactorTarget_ = _f; this->updateRenderResFactor();}
         void setupCamera();
         void setupGraphics();
-        void setupMainDisplayFBO();
-        void setupMainDisplayMesh();
         void setWindowSize(const double _x, const double _y);
 
     private:
 
+        void blurSceneSSAA();
+        void updateRenderResFactor();
+
         entt::registry& Reg_;
 
-        double RenderResFactor_{8.0};
-        double RenderResFactorTarget_{4.0};
+        double RenderResFactor_{2.0};
+        double RenderResFactorTarget_{2.0};
         int TextureSizeMax_{1024};
         int WindowSizeX_{1024};
         int WindowSizeY_{768};

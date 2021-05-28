@@ -43,8 +43,6 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
     this->setupNetwork();
     Reg_.ctx<RenderSystem>().setupCamera();
     Reg_.ctx<RenderSystem>().setupGraphics();
-    Reg_.ctx<RenderSystem>().setupMainDisplayFBO();
-    Reg_.ctx<RenderSystem>().setupMainDisplayMesh();
     setSwapInterval(1);
     setMinimalLoopPeriod(1.0f/60.0f * 1000.0f);
 }
@@ -353,6 +351,10 @@ void PwngClient::updateUI()
                 }
 
                 UI.processVerbosity();
+
+                static float RenderResolutionFactor = 2.0f;
+                if (ImGui::SliderFloat("Render resolution factor", &RenderResolutionFactor, 0.1f, 4.0f))
+                    Renderer.setRenderResFactor(RenderResolutionFactor);
 
             ImGui::Unindent();
             ImGui::Indent();
