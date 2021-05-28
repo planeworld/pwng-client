@@ -3,7 +3,10 @@ uniform bool u_horizontal;
 
 out vec4 frag_color;
 
-const float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
+// Normal distribution (mu=0, sigma=1) at x=0,1,2
+// Hence, blurring uses all values within 2-sigma, which is
+// 95.45% of the relevant information.
+const float weight[3] = float[] (0.41, 0.24, 0.05);
 
 void main()
 {
@@ -11,7 +14,7 @@ void main()
 
     if (u_horizontal)
     {
-        for(int i = 1; i < 5; ++i)
+        for(int i = 1; i < 3; ++i)
         {
             frag_color += texelFetch(u_texture, ivec2(gl_FragCoord.xy) + ivec2(1,0) * i, 0) * weight[i];
             frag_color += texelFetch(u_texture, ivec2(gl_FragCoord.xy) - ivec2(1,0) * i, 0) * weight[i];
@@ -19,7 +22,7 @@ void main()
     }
     else
     {
-        for(int i = 1; i < 5; ++i)
+        for(int i = 1; i < 3; ++i)
         {
             frag_color += texelFetch(u_texture, ivec2(gl_FragCoord.xy) + ivec2(0,1) * i, 0) * weight[i];
             frag_color += texelFetch(u_texture, ivec2(gl_FragCoord.xy) - ivec2(0,1) * i, 0) * weight[i];
