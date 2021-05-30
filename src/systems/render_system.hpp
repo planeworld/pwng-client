@@ -1,6 +1,8 @@
 #ifndef RENDER_SYSTEM_HPP
 #define RENDER_SYSTEM_HPP
 
+#include <vector>
+
 #include <entt/entity/registry.hpp>
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/GL/Framebuffer.h>
@@ -55,7 +57,7 @@ class RenderSystem
         int WindowSizeX_{1024};
         int WindowSizeY_{768};
 
-        GL::Mesh CircleShape_{NoCreate};
+        std::vector<GL::Mesh> CircleShapes_;
         GL::Mesh ScaleLineShapeH_{NoCreate};
         GL::Mesh ScaleLineShapeV_{NoCreate};
         Matrix3 ProjectionScene_;

@@ -218,7 +218,12 @@ void RenderSystem::renderScene()
         {
             Shader_.setColor({0.0, 0.0, 1.0});
         }
-        Shader_.draw(CircleShape_);
+        if (r < 10)
+            Shader_.draw(CircleShapes_[0]);
+        else if (r < 300)
+            Shader_.draw(CircleShapes_[1]);
+        else
+            Shader_.draw(CircleShapes_[2]);
     });
 
     this->blurSceneSSAA();
@@ -278,7 +283,9 @@ void RenderSystem::setupGraphics()
     }
 
     Shader_ = Shaders::Flat2D{};
-    CircleShape_ = MeshTools::compile(Primitives::circle2DSolid(100));
+    CircleShapes_.push_back(MeshTools::compile(Primitives::circle2DSolid(10)));
+    CircleShapes_.push_back(MeshTools::compile(Primitives::circle2DSolid(100)));
+    CircleShapes_.push_back(MeshTools::compile(Primitives::circle2DSolid(1000)));
     ScaleLineShapeH_ = MeshTools::compile(Primitives::line2D({-1.0, 1.0},
                                                              { 1.0, 1.0}));
     ScaleLineShapeV_ = MeshTools::compile(Primitives::line2D({ 1.0, -1.0},
