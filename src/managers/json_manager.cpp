@@ -45,9 +45,9 @@ JsonManager::RequestIDType JsonManager::sendJsonRpcRequest(const std::string& _R
     w.EndObject();
     OutputQueue_->enqueue(s.GetString());
 
-    StringBuffer_.Clear();
-    Writer_.Reset(StringBuffer_);
-    Writer_.StartObject();
+    // StringBuffer_.Clear();
+    // Writer_.Reset(StringBuffer_);
+    // Writer_.StartObject();
 
     return RequestID_;
 }
