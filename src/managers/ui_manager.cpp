@@ -1,9 +1,20 @@
 #include "ui_manager.hpp"
 
-#include <vector>
-
+#include "json_manager.hpp"
 #include "message_handler.hpp"
 #include "network_manager.hpp"
+
+void UIManager::addCamHook(entt::entity _e, const std::string& _n)
+{
+    CamHooks_.insert({_n, _e});
+    // EntitiesCamHook_.push_back(_e);
+    // NamesCamHook_.push_back(_n);
+}
+
+void UIManager::addSystem(entt::entity _e, const std::string& _n)
+{
+    NamesSubSystemsSet_.insert(_n);
+}
 
 void UIManager::displayHelp()
 {
@@ -125,38 +136,70 @@ void UIManager::displayScale(const int _Scale, const ScaleUnitE _ScaleUnit)
     ImGui::End();
 }
 
+void UIManager::finishSystemsTransfer()
+{
+    NamesSubSystems_.assign(NamesSubSystemsSet_.cbegin(), NamesSubSystemsSet_.cend());
+
+    NamesCamHooks_.clear();
+    NamesCamHooks_.reserve(CamHooks_.size());
+
+    std::transform(CamHooks_.cbegin(), CamHooks_.cend(), std::back_inserter(NamesCamHooks_),
+        [](decltype(CamHooks_)::value_type const& _Pair) {return _Pair.first;}
+    );
+}
+
 void UIManager::processCameraHooks(entt::entity _Cam)
 {
     ImGui::TextColored(ImVec4(1,1,0,1), "Camera Hooks");
 
-    std::vector<std::string> Names;
-    std::vector<entt::entity> Entities;
+    // std::vector<std::string> Names;
+    // std::vector<entt::entity> Entities;
 
-    Names.push_back("None");
-    Entities.push_back(Reg_.get<HookDummyComponent>(_Cam).e);
+    // Names.push_back("None");
+    // Entities.push_back(Reg_.get<HookDummyComponent>(_Cam).e);
 
-    Reg_.view<NameComponent>().each(
-        [&Names, &Entities](auto _e, const auto& _n)
-        {
-            Names.push_back(_n.Name);
-            Entities.push_back(_e);
-        });
+    // Process all objects with name and position
+    // Reg_.view<NameComponent, SystemPositionComponent>().each(
+    //     [&Names, &Entities](auto _e, const auto& _n, const auto& _p_s)
+        // {
+        //     Names.push_back(_n.Name);
+        //     Entities.push_back(_e);
+        // });
 
     static int CamHook{0};
-    if (ImGui::Combo("Select Hook", &CamHook, Names))
+    if (ImGui::Combo("Select Hook", &CamHook, NamesCamHooks_))
     {
         auto& Messages = Reg_.ctx<MessageHandler>();
 
         auto& h = Reg_.get<HookComponent>(_Cam);
         auto& p_s = Reg_.get<SystemPositionComponent>(_Cam);
-        h.e = Entities[CamHook];
+        // h.e = EntitiesCamHook_[CamHook];
+        h.e = CamHooks_[NamesCamHooks_[CamHook]];
 
         p_s = {0.0, 0.0};
 
         auto* p = Reg_.try_get<PositionComponent>(_Cam);
         if (p != nullptr) *p = {0.0, 0.0};
 
-        DBLK(Messages.report("ui", "New camera hook on object " + std::string(Names[CamHook]), MessageHandler::DEBUG_L1);)
+        DBLK(Messages.report("ui", "New camera hook on object " + std::string(NamesCamHooks_[CamHook]), MessageHandler::DEBUG_L1);)
+    }
+}
+
+void UIManager::processClientControl()
+{
+    auto& Json = Reg_.ctx<JsonManager>();
+
+    if (ImGui::Button("Get Static Galaxy Data"))
+    {
+        Json.sendJsonRpcRequest("get_data");
+    }
+    if (ImGui::Button("Subscribe: Dynamic Data"))
+    {
+        Json.sendJsonRpcRequest("sub_dynamic_data");
+    }
+    if (ImGui::Button("Subscribe: Server Stats"))
+    {
+        Json.sendJsonRpcRequest("sub_server_stats");
     }
 }
 
@@ -192,6 +235,74 @@ void UIManager::processObjectLabels()
             ImGui::Checkbox("Star Data", &LabelsStarData_);
         ImGui::Unindent();
     ImGui::Unindent();
+}
+
+void UIManager::processServerControl()
+{
+    auto& Json = Reg_.ctx<JsonManager>();
+
+    static char Id[10] = "1";
+    ImGui::Text("ID     ");
+    ImGui::SameLine();
+    ImGui::InputText("##ID", Id, IM_ARRAYSIZE(Id));
+    static char Msg[128] = "Hello Server";
+    ImGui::Text("Message");
+    ImGui::SameLine();
+    ImGui::InputText("##Message", Msg, IM_ARRAYSIZE(Msg));
+    ImGui::SameLine();
+    if (ImGui::Button("Send"))
+    {
+        Json.sendJsonRpcRequest(Msg);
+    }
+    if (ImGui::Button("Start Simulation"))
+    {
+        Json.sendJsonRpcRequest("start_simulation");
+    }
+    if (ImGui::Button("Stop Simulation"))
+    {
+        Json.sendJsonRpcRequest("stop_simulation");
+    }
+    if (ImGui::Button("Shutdown Server"))
+    {
+        Json.sendJsonRpcRequest("shutdown");
+    }
+}
+
+void UIManager::processSubscriptions()
+{
+    static int StarSystemSub{0};
+    if (ImGui::Combo("Subscribe", &StarSystemSub, NamesSubSystems_))
+    {
+        auto& Json = Reg_.ctx<JsonManager>();
+
+        std::string Name = NamesSubSystems_[StarSystemSub];
+
+        NamesUnsubSystemsSet_.insert(Name);
+        NamesSubSystemsSet_.erase(Name);
+
+        NamesSubSystems_.assign(NamesSubSystemsSet_.cbegin(), NamesSubSystemsSet_.cend());
+        NamesUnsubSystems_.assign(NamesUnsubSystemsSet_.cbegin(), NamesUnsubSystemsSet_.cend());
+
+        Json.addParamDouble("Test", 10.0);
+        Json.sendJsonRpcRequest("sub_system", 1);
+
+        StarSystemSub = 0;
+    }
+    static int StarSystemUnsub{0};
+    if (ImGui::Combo("Unsubscribe", &StarSystemUnsub, NamesUnsubSystems_))
+    {
+        auto& Json = Reg_.ctx<JsonManager>();
+
+        std::string Name = NamesUnsubSystems_[StarSystemUnsub];
+
+        NamesSubSystemsSet_.insert(Name);
+        NamesUnsubSystemsSet_.erase(Name);
+
+        NamesSubSystems_.assign(NamesSubSystemsSet_.cbegin(), NamesSubSystemsSet_.cend());
+        NamesUnsubSystems_.assign(NamesUnsubSystemsSet_.cbegin(), NamesUnsubSystemsSet_.cend());
+
+        StarSystemUnsub = 0;
+    }
 }
 
 void UIManager::processVerbosity()

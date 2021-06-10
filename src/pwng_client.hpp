@@ -42,8 +42,6 @@ class PwngClient : public Magnum::Platform::Application
         void setupWindow();
         void updateUI();
 
-        void sendJsonRpcMessage(const std::string& _Msg, const std::string& _ID);
-
         PerformanceTimers Timers_;
 
         //--- Graphics ---//

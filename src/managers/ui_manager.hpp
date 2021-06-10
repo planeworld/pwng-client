@@ -1,6 +1,8 @@
 #ifndef UI_MANAGER_HPP
 #define UI_MANAGER_HPP
 
+#include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -20,14 +22,20 @@ class UIManager
                            Magnum::ImGuiIntegration::Context& _ImGUI) :
                            Reg_(_Reg), ImGUI_(_ImGUI) {}
 
+        void addCamHook(entt::entity _e, const std::string& _n);
+        void addSystem(entt::entity _e, const std::string& _n);
         void displayHelp();
         void displayObjectLabels(entt::entity _Cam);
         void displayPerformance(PerformanceTimers& _Timers);
         void displayScale(const int _Scale, const ScaleUnitE _ScaleUnit);
+        void finishSystemsTransfer();
         void processCameraHooks(entt::entity _Cam);
+        void processClientControl();
         void processConnections();
         void processHelp();
         void processObjectLabels();
+        void processServerControl();
+        void processSubscriptions();
         void processVerbosity();
 
 
@@ -35,6 +43,14 @@ class UIManager
 
         entt::registry& Reg_;
         Magnum::ImGuiIntegration::Context& ImGUI_;
+
+        std::map<std::string, entt::entity> CamHooks_;
+        std::set<std::string> NamesSubSystemsSet_;
+        std::set<std::string> NamesUnsubSystemsSet_;
+        std::vector<std::string> NamesCamHooks_;
+        std::vector<std::string> NamesSubSystems_;
+        std::vector<std::string> NamesUnsubSystems_;
+        // std::vector<entt::entity> EntitiesCamHook_;
 
         bool Labels_{false};
         bool LabelsMass_{false};

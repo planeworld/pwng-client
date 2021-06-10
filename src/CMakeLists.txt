@@ -2,6 +2,7 @@ find_package(Threads)
 find_package(RapidJSON)
 
 set(HEADERS
+  managers/json_manager.hpp
   managers/network_manager.hpp
   managers/ui_manager.hpp
   shaders/blur_shader_5x1.hpp
@@ -21,6 +22,7 @@ set(HEADERS
 
 set(SOURCES
   ${ImGui_INCLUDE_DIR}/imgui.cpp
+  managers/json_manager.cpp
   managers/network_manager.cpp
   managers/ui_manager.cpp
   systems/render_system.cpp

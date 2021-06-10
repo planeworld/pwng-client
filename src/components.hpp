@@ -92,6 +92,7 @@ struct ZoomComponent
 
 struct DynamicObjectTag{};
 struct InsideViewportTag{};
+struct StarSystemTag{};
 struct StaticObjectTag{};
 
 #endif // COMPONENTS_HPP

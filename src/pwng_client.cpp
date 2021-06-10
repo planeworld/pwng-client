@@ -11,10 +11,10 @@
 #include <concurrentqueue/concurrentqueue.h>
 #include <entt/entity/registry.hpp>
 #include <rapidjson/document.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
+#include <rapidjson/error/en.h>
 
 #include "components.hpp"
+#include "json_manager.hpp"
 #include "message_handler.hpp"
 #include "name_system.hpp"
 #include "network_manager.hpp"
@@ -25,6 +25,7 @@
 PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate}
 
 {
+    Reg_.set<JsonManager>(Reg_, &InputQueue_, &OutputQueue_);
     Reg_.set<MessageHandler>();
     Reg_.set<NameSystem>(Reg_);
     Reg_.set<NetworkManager>(Reg_);
@@ -34,6 +35,7 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
     auto& Messages = Reg_.ctx<MessageHandler>();
 
     Messages.registerSource("col", "col");
+    Messages.registerSource("jsn", "jsn");
     Messages.registerSource("net", "net");
     Messages.registerSource("prg", "prg");
     Messages.registerSource("gfx", "gfx");
@@ -152,92 +154,139 @@ void PwngClient::getObjectsFromQueue()
     Timers_.Queue.start();
     auto& Messages = Reg_.ctx<MessageHandler>();
     auto& Names = Reg_.ctx<NameSystem>();
+    auto& UI = Reg_.ctx<UIManager>();
 
     std::string Data;
     while (InputQueue_.try_dequeue(Data))
     {
         rapidjson::Document j;
-        j.Parse(Data.c_str());
+        rapidjson::ParseResult r = j.Parse(Data.c_str());
 
-        if (j["method"] == "galaxy_data")
+        if (!r)
         {
+            // std::cerr << "JSON parse error: %s (%u)", rapidjson::GetParseError_En(r.Code()), r.Offset();
+            Messages.report("prg", "Parse error: "+std::string(rapidjson::GetParseError_En(r.Code())), MessageHandler::ERROR);
+            continue;
+        }
 
-            std::string n = j["params"]["name"].GetString();
-            double      m = j["params"]["m"].GetDouble();
-            double      x = j["params"]["spx"].GetDouble();
-            double      y = j["params"]["spy"].GetDouble();
-            double      r = j["params"]["r"].GetDouble();
-            int        SC = j["params"]["sc"].GetInt();
-            double      t = j["params"]["t"].GetDouble();
-
-            entt::id_type Id = j["params"]["eid"].GetInt();
-
-            auto ci = Id2EntityMap_.find(Id);
-            if (ci != Id2EntityMap_.end())
+        rapidjson::Value::ConstMemberIterator it = j.FindMember("method");
+        if (it != j.MemberEnd())
+        {
+            if (j["method"] == "galaxy_data_stars")
             {
-                Reg_.emplace_or_replace<RadiusComponent>(ci->second, r);
-                Reg_.emplace_or_replace<MassComponent>(ci->second, m);
-                Reg_.emplace_or_replace<SystemPositionComponent>(ci->second, x, y);
-                Reg_.emplace_or_replace<StarDataComponent>(ci->second, SpectralClassE(SC), t);
-                Reg_.emplace_or_replace<NameComponent>(ci->second);
-                Names.setName(ci->second, n);
-                DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
+
+                std::string n = j["params"]["name"].GetString();
+                double      m = j["params"]["m"].GetDouble();
+                double      x = j["params"]["spx"].GetDouble();
+                double      y = j["params"]["spy"].GetDouble();
+                double      r = j["params"]["r"].GetDouble();
+                int        SC = j["params"]["sc"].GetInt();
+                double      t = j["params"]["t"].GetDouble();
+
+                entt::id_type Id = j["params"]["eid"].GetInt();
+
+                auto ci = Id2EntityMap_.find(Id);
+                if (ci != Id2EntityMap_.end())
+                {
+                    Reg_.emplace_or_replace<RadiusComponent>(ci->second, r);
+                    Reg_.emplace_or_replace<MassComponent>(ci->second, m);
+                    Reg_.emplace_or_replace<SystemPositionComponent>(ci->second, x, y);
+                    Reg_.emplace_or_replace<StarDataComponent>(ci->second, SpectralClassE(SC), t);
+                    Reg_.emplace_or_replace<NameComponent>(ci->second);
+                    Names.setName(ci->second, n);
+                    DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
+                }
+                else
+                {
+                    auto e = Reg_.create();
+                    Reg_.emplace<RadiusComponent>(e, r);
+                    Reg_.emplace<MassComponent>(e, m);
+                    Reg_.emplace<SystemPositionComponent>(e, x, y);
+                    Reg_.emplace<StarDataComponent>(e, SpectralClassE(SC), t);
+                    Reg_.emplace<NameComponent>(e);
+                    Names.setName(e, n);
+                    UI.addCamHook(e, n);
+                    Id2EntityMap_[Id] = e;
+                    DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
+                }
             }
-            else
+            else if (j["method"] == "galaxy_data_systems")
             {
-                auto e = Reg_.create();
-                Reg_.emplace<RadiusComponent>(e, r);
-                Reg_.emplace<MassComponent>(e, m);
-                Reg_.emplace<SystemPositionComponent>(e, x, y);
-                Reg_.emplace<StarDataComponent>(e, SpectralClassE(SC), t);
-                Reg_.emplace<NameComponent>(e);
-                Names.setName(e, n);
-                Id2EntityMap_[Id] = e;
-                DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
+                std::string n = j["params"]["name"].GetString();
+                entt::id_type Id = j["params"]["eid"].GetInt();
+
+                auto ci = Id2EntityMap_.find(Id);
+                if (ci != Id2EntityMap_.end())
+                {
+                    Reg_.emplace_or_replace<StarSystemTag>(ci->second);
+                    Reg_.emplace_or_replace<NameComponent>(ci->second);
+                    Names.setName(ci->second, n);
+                    DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
+                }
+                else
+                {
+                    auto e = Reg_.create();
+                    Reg_.emplace<StarSystemTag>(e);
+                    Reg_.emplace<NameComponent>(e);
+                    Names.setName(e, n);
+                    UI.addSystem(e, n);
+                    Id2EntityMap_[Id] = e;
+                    DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
+                }
+            }
+            else if (j["method"] == "bc_dynamic_data")
+            {
+                std::string n = j["params"]["name"].GetString();
+                double      m = j["params"]["m"].GetDouble();
+                double    spx = j["params"]["spx"].GetDouble();
+                double    spy = j["params"]["spy"].GetDouble();
+                double     px = j["params"]["px"].GetDouble();
+                double     py = j["params"]["py"].GetDouble();
+                double      r = j["params"]["r"].GetDouble();
+
+                entt::id_type Id = j["params"]["eid"].GetInt();
+
+                auto ci = Id2EntityMap_.find(Id);
+                if (ci != Id2EntityMap_.end())
+                {
+                    Reg_.emplace_or_replace<MassComponent>(ci->second, m);
+                    Reg_.emplace_or_replace<PositionComponent>(ci->second, px, py);
+                    Reg_.emplace_or_replace<RadiusComponent>(ci->second, r);
+                    Reg_.emplace_or_replace<SystemPositionComponent>(ci->second, spx, spy);
+                    Reg_.emplace_or_replace<NameComponent>(ci->second);
+                    Names.setName(ci->second, n);
+                    DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
+                }
+                else
+                {
+                    auto e = Reg_.create();
+                    Reg_.emplace<MassComponent>(e, m);
+                    Reg_.emplace<PositionComponent>(e, px, py);
+                    Reg_.emplace<RadiusComponent>(e, r);
+                    Reg_.emplace<SystemPositionComponent>(e, spx, spy);
+                    Reg_.emplace<NameComponent>(e);
+                    Names.setName(e, n);
+                    UI.addCamHook(e, n);
+                    Id2EntityMap_[Id] = e;
+                    DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
+                }
+            }
+            else if (j["method"] == "sim_stats")
+            {
+                Timers_.ServerPhysicsFrameTimeAvg.addValue(j["params"]["t_phy"].GetDouble());
+                Timers_.ServerQueueInFrameTimeAvg.addValue(j["params"]["t_queue_in"].GetDouble());
+                Timers_.ServerQueueOutFrameTimeAvg.addValue(j["params"]["t_queue_out"].GetDouble());
+                Timers_.ServerSimFrameTimeAvg.addValue(j["params"]["t_sim"].GetDouble());
             }
         }
-        if (j["method"] == "bc_dynamic_data")
+        it = j.FindMember("result");
+        if (it != j.MemberEnd())
         {
-            std::string n = j["params"]["name"].GetString();
-            double      m = j["params"]["m"].GetDouble();
-            double    spx = j["params"]["spx"].GetDouble();
-            double    spy = j["params"]["spy"].GetDouble();
-            double     px = j["params"]["px"].GetDouble();
-            double     py = j["params"]["py"].GetDouble();
-            double      r = j["params"]["r"].GetDouble();
-
-            entt::id_type Id = j["params"]["eid"].GetInt();
-
-            auto ci = Id2EntityMap_.find(Id);
-            if (ci != Id2EntityMap_.end())
+            if (j["result"] == "success")
             {
-                Reg_.emplace_or_replace<MassComponent>(ci->second, m);
-                Reg_.emplace_or_replace<PositionComponent>(ci->second, px, py);
-                Reg_.emplace_or_replace<RadiusComponent>(ci->second, r);
-                Reg_.emplace_or_replace<SystemPositionComponent>(ci->second, spx, spy);
-                Reg_.emplace_or_replace<NameComponent>(ci->second);
-                Names.setName(ci->second, n);
-                DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
+                UI.finishSystemsTransfer();
+                DBLK(Messages.report("prg", "Receiving systems successful", MessageHandler::DEBUG_L1);)
             }
-            else
-            {
-                auto e = Reg_.create();
-                Reg_.emplace<MassComponent>(e, m);
-                Reg_.emplace<PositionComponent>(e, px, py);
-                Reg_.emplace<RadiusComponent>(e, r);
-                Reg_.emplace<SystemPositionComponent>(e, spx, spy);
-                Reg_.emplace<NameComponent>(e);
-                Names.setName(e, n);
-                Id2EntityMap_[Id] = e;
-                DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
-            }
-        }
-        else if (j["method"] == "sim_stats")
-        {
-            Timers_.ServerPhysicsFrameTimeAvg.addValue(j["params"]["t_phy"].GetDouble());
-            Timers_.ServerQueueInFrameTimeAvg.addValue(j["params"]["t_queue_in"].GetDouble());
-            Timers_.ServerQueueOutFrameTimeAvg.addValue(j["params"]["t_queue_out"].GetDouble());
-            Timers_.ServerSimFrameTimeAvg.addValue(j["params"]["t_sim"].GetDouble());
         }
     }
     Timers_.Queue.stop();
@@ -330,26 +379,13 @@ void PwngClient::updateUI()
 
                 UI.processHelp();
                 UI.processConnections();
-
-                if (ImGui::Button("Get Static Galaxy Data"))
-                {
-                    this->sendJsonRpcMessage("get_data", "c000");
-                }
-                if (ImGui::Button("Subscribe: Dynamic Data"))
-                {
-                    this->sendJsonRpcMessage("sub_dynamic_data", "c001");
-                }
-                if (ImGui::Button("Subscribe: Server Stats"))
-                {
-                    this->sendJsonRpcMessage("sub_server_stats", "c001");
-                }
+                UI.processClientControl();
 
                 if (ImGui::Button("Quit Client"))
                 {
                     Network.quit();
                     Platform::Application::Sdl2Application::exit();
                 }
-
                 UI.processVerbosity();
 
                 static float RenderResolutionFactor = 2.0f;
@@ -359,34 +395,12 @@ void PwngClient::updateUI()
             ImGui::Unindent();
             ImGui::Indent();
                 UI.processCameraHooks(Camera);
+                UI.processSubscriptions();
             ImGui::Unindent();
+
             ImGui::TextColored(ImVec4(1,1,0,1), "Server control");
             ImGui::Indent();
-                static char Id[10] = "1";
-                ImGui::Text("ID     ");
-                ImGui::SameLine();
-                ImGui::InputText("##ID", Id, IM_ARRAYSIZE(Id));
-                static char Msg[128] = "Hello Server";
-                ImGui::Text("Message");
-                ImGui::SameLine();
-                ImGui::InputText("##Message", Msg, IM_ARRAYSIZE(Msg));
-                ImGui::SameLine();
-                if (ImGui::Button("Send"))
-                {
-                    this->sendJsonRpcMessage(Msg, Id);
-                }
-                if (ImGui::Button("Start Simulation"))
-                {
-                    this->sendJsonRpcMessage("start_simulation", "c002");
-                }
-                if (ImGui::Button("Stop Simulation"))
-                {
-                    this->sendJsonRpcMessage("stop_simulation", "c003");
-                }
-                if (ImGui::Button("Shutdown Server"))
-                {
-                    this->sendJsonRpcMessage("shutdown", "c0004");
-                }
+                UI.processServerControl();
             ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Display");
             ImGui::Indent();
@@ -408,24 +422,6 @@ void PwngClient::updateUI()
     GL::Renderer::BlendEquation::Add);
     GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha,
     GL::Renderer::BlendFunction::OneMinusSourceAlpha);
-}
-
-void PwngClient::sendJsonRpcMessage(const std::string& _Msg, const std::string& _ID)
-{
-    using namespace rapidjson;
-    StringBuffer s;
-    Writer<StringBuffer> w(s);
-
-    w.StartObject();
-    w.Key("jsonrpc"); w.String("2.0");
-    w.Key("method"); w.String("send");
-    w.Key("params");
-        w.StartObject();
-        w.Key("Message"); w.String(_Msg.c_str());
-        w.EndObject();
-    w.Key("id"); w.String(_ID.c_str());
-    w.EndObject();
-    OutputQueue_.enqueue(s.GetString());
 }
 
 MAGNUM_APPLICATION_MAIN(PwngClient)
