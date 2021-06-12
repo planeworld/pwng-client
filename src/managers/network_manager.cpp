@@ -170,6 +170,7 @@ void NetworkManager::run()
         while (IsConnected_ && OutputQueue_->try_dequeue(Message))
         {
             DBLK(Messages.report("net", "Sending message", MessageHandler::DEBUG_L2);)
+            DBLK(Messages.report("net", Message, MessageHandler::DEBUG_L3);)
             websocketpp::lib::error_code ErrorCode;
             Client_.send(Connection_, Message, websocketpp::frame::opcode::text, ErrorCode);
             if (ErrorCode)

@@ -22,7 +22,14 @@ class JsonManager
                              InputQueue_(_InputQueue),
                              OutputQueue_(_OutputQueue){}
 
-        void addParamDouble(const std::string& _Name, double _v);
+        JsonManager& createRequest(const std::string& _Req);
+        JsonManager& addParam(const std::string& _Name, double _v);
+        JsonManager& addParam(const std::string& _Name, std::uint32_t _v);
+        JsonManager& addParam(const std::string& _Name, const std::string& _v);
+        std::uint32_t send();
+
+
+
         std::uint32_t sendJsonRpcRequest(const std::string& _Req);
         std::uint32_t sendJsonRpcRequest(const std::string& _Req, int _NrParams);
 
@@ -32,6 +39,9 @@ class JsonManager
 
         moodycamel::ConcurrentQueue<std::string>* InputQueue_;
         moodycamel::ConcurrentQueue<std::string>* OutputQueue_;
+
+        StringBuffer Buffer_;
+        Writer<StringBuffer> Writer_{Buffer_};
 
         std::string Params_;
 

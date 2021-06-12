@@ -283,8 +283,9 @@ void UIManager::processSubscriptions()
         NamesSubSystems_.assign(NamesSubSystemsSet_.cbegin(), NamesSubSystemsSet_.cend());
         NamesUnsubSystems_.assign(NamesUnsubSystemsSet_.cbegin(), NamesUnsubSystemsSet_.cend());
 
-        Json.addParamDouble("Test", 10.0);
-        Json.sendJsonRpcRequest("sub_system", 1);
+        Json.createRequest("sub_system")
+            .addParam("name", Name)
+            .send();
 
         StarSystemSub = 0;
     }
@@ -300,6 +301,10 @@ void UIManager::processSubscriptions()
 
         NamesSubSystems_.assign(NamesSubSystemsSet_.cbegin(), NamesSubSystemsSet_.cend());
         NamesUnsubSystems_.assign(NamesUnsubSystemsSet_.cbegin(), NamesUnsubSystemsSet_.cend());
+
+        Json.createRequest("unsub_system")
+            .addParam("name", Name)
+            .send();
 
         StarSystemUnsub = 0;
     }
