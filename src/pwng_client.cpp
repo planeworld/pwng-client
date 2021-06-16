@@ -25,12 +25,12 @@
 PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate}
 
 {
-    Reg_.set<JsonManager>(Reg_, &InputQueue_, &OutputQueue_);
+    Reg_.set<JsonManager>(Reg_);
     Reg_.set<MessageHandler>();
     Reg_.set<NameSystem>(Reg_);
     Reg_.set<NetworkManager>(Reg_);
     Reg_.set<RenderSystem>(Reg_);
-    Reg_.set<UIManager>(Reg_, ImGUI_);
+    Reg_.set<UIManager>(Reg_, ImGUI_, &InputQueue_, &OutputQueue_);
 
     auto& Messages = Reg_.ctx<MessageHandler>();
 
@@ -194,7 +194,7 @@ void PwngClient::getObjectsFromQueue()
                     Reg_.emplace_or_replace<StarDataComponent>(ci->second, SpectralClassE(SC), t);
                     Reg_.emplace_or_replace<NameComponent>(ci->second);
                     Names.setName(ci->second, n);
-                    DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
+                    // DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
                 }
                 else
                 {
@@ -207,7 +207,7 @@ void PwngClient::getObjectsFromQueue()
                     Names.setName(e, n);
                     UI.addCamHook(e, n);
                     Id2EntityMap_[Id] = e;
-                    DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
+                    // DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
                 }
             }
             else if (j["method"] == "galaxy_data_systems")
@@ -221,7 +221,7 @@ void PwngClient::getObjectsFromQueue()
                     Reg_.emplace_or_replace<StarSystemTag>(ci->second);
                     Reg_.emplace_or_replace<NameComponent>(ci->second);
                     Names.setName(ci->second, n);
-                    DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
+                    // DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
                 }
                 else
                 {
@@ -231,7 +231,7 @@ void PwngClient::getObjectsFromQueue()
                     Names.setName(e, n);
                     UI.addSystem(e, n);
                     Id2EntityMap_[Id] = e;
-                    DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
+                    // DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
                 }
             }
             else if (j["method"] == "bc_dynamic_data")
@@ -255,7 +255,7 @@ void PwngClient::getObjectsFromQueue()
                     Reg_.emplace_or_replace<SystemPositionComponent>(ci->second, spx, spy);
                     Reg_.emplace_or_replace<NameComponent>(ci->second);
                     Names.setName(ci->second, n);
-                    DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
+                    // DBLK(Messages.report("prg", "Entity components updated", MessageHandler::DEBUG_L3);)
                 }
                 else
                 {
@@ -268,7 +268,7 @@ void PwngClient::getObjectsFromQueue()
                     Names.setName(e, n);
                     UI.addCamHook(e, n);
                     Id2EntityMap_[Id] = e;
-                    DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
+                    // DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
                 }
             }
             else if (j["method"] == "sim_stats")

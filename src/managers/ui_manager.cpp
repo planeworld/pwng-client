@@ -7,8 +7,6 @@
 void UIManager::addCamHook(entt::entity _e, const std::string& _n)
 {
     CamHooks_.insert({_n, _e});
-    // EntitiesCamHook_.push_back(_e);
-    // NamesCamHook_.push_back(_n);
 }
 
 void UIManager::addSystem(entt::entity _e, const std::string& _n)
@@ -152,20 +150,6 @@ void UIManager::processCameraHooks(entt::entity _Cam)
 {
     ImGui::TextColored(ImVec4(1,1,0,1), "Camera Hooks");
 
-    // std::vector<std::string> Names;
-    // std::vector<entt::entity> Entities;
-
-    // Names.push_back("None");
-    // Entities.push_back(Reg_.get<HookDummyComponent>(_Cam).e);
-
-    // Process all objects with name and position
-    // Reg_.view<NameComponent, SystemPositionComponent>().each(
-    //     [&Names, &Entities](auto _e, const auto& _n, const auto& _p_s)
-        // {
-        //     Names.push_back(_n.Name);
-        //     Entities.push_back(_e);
-        // });
-
     static int CamHook{0};
     if (ImGui::Combo("Select Hook", &CamHook, NamesCamHooks_))
     {
@@ -191,15 +175,18 @@ void UIManager::processClientControl()
 
     if (ImGui::Button("Get Static Galaxy Data"))
     {
-        Json.sendJsonRpcRequest("get_data");
+        Json.createRequest("get_data").finalise();
+        QueueOut_->enqueue(Json.getString());
     }
     if (ImGui::Button("Subscribe: Dynamic Data"))
     {
-        Json.sendJsonRpcRequest("sub_dynamic_data");
+        Json.createRequest("sub_dynamic_data").finalise();
+        QueueOut_->enqueue(Json.getString());
     }
     if (ImGui::Button("Subscribe: Server Stats"))
     {
-        Json.sendJsonRpcRequest("sub_server_stats");
+        Json.createRequest("sub_server_stats").finalise();
+        QueueOut_->enqueue(Json.getString());
     }
 }
 
@@ -252,19 +239,23 @@ void UIManager::processServerControl()
     ImGui::SameLine();
     if (ImGui::Button("Send"))
     {
-        Json.sendJsonRpcRequest(Msg);
+        Json.createRequest(Msg).finalise();
+        QueueOut_->enqueue(Json.getString());
     }
     if (ImGui::Button("Start Simulation"))
     {
-        Json.sendJsonRpcRequest("start_simulation");
+        Json.createRequest("start_simulation").finalise();
+        QueueOut_->enqueue(Json.getString());
     }
     if (ImGui::Button("Stop Simulation"))
     {
-        Json.sendJsonRpcRequest("stop_simulation");
+        Json.createRequest("stop_simulation").finalise();
+        QueueOut_->enqueue(Json.getString());
     }
     if (ImGui::Button("Shutdown Server"))
     {
-        Json.sendJsonRpcRequest("shutdown");
+        Json.createRequest("shutdown").finalise();
+        QueueOut_->enqueue(Json.getString());
     }
 }
 
@@ -285,7 +276,8 @@ void UIManager::processSubscriptions()
 
         Json.createRequest("sub_system")
             .addParam("name", Name)
-            .send();
+            .finalise();
+        QueueOut_->enqueue(Json.getString());
 
         StarSystemSub = 0;
     }
@@ -304,7 +296,8 @@ void UIManager::processSubscriptions()
 
         Json.createRequest("unsub_system")
             .addParam("name", Name)
-            .send();
+            .finalise();
+        QueueOut_->enqueue(Json.getString());
 
         StarSystemUnsub = 0;
     }

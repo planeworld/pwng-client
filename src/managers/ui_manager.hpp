@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include <concurrentqueue/concurrentqueue.h>
 #include <entt/entity/registry.hpp>
 #include <Magnum/ImGuiIntegration/Context.hpp>
 
@@ -19,8 +20,13 @@ class UIManager
     public:
 
         explicit UIManager(entt::registry& _Reg,
-                           Magnum::ImGuiIntegration::Context& _ImGUI) :
-                           Reg_(_Reg), ImGUI_(_ImGUI) {}
+                           Magnum::ImGuiIntegration::Context& _ImGUI,
+                           moodycamel::ConcurrentQueue<std::string>* _QueueIn,
+                           moodycamel::ConcurrentQueue<std::string>* _QueueOut) :
+                Reg_(_Reg),
+                QueueIn_(_QueueIn),
+                QueueOut_(_QueueOut),
+                ImGUI_(_ImGUI) {}
 
         void addCamHook(entt::entity _e, const std::string& _n);
         void addSystem(entt::entity _e, const std::string& _n);
@@ -43,6 +49,9 @@ class UIManager
 
         entt::registry& Reg_;
         Magnum::ImGuiIntegration::Context& ImGUI_;
+
+        moodycamel::ConcurrentQueue<std::string>* QueueIn_;
+        moodycamel::ConcurrentQueue<std::string>* QueueOut_;
 
         std::map<std::string, entt::entity> CamHooks_;
         std::set<std::string> NamesSubSystemsSet_;
