@@ -278,6 +278,37 @@ void PwngClient::getObjectsFromQueue()
                 Timers_.ServerQueueOutFrameTimeAvg.addValue(j["params"]["t_queue_out"].GetDouble());
                 Timers_.ServerSimFrameTimeAvg.addValue(j["params"]["t_sim"].GetDouble());
             }
+            else if (j["method"] == "tire_data")
+            {
+                double RimX = j["params"]["rim_xy"][0].GetDouble();
+                double RimY = j["params"]["rim_xy"][1].GetDouble();
+                double RimR = j["params"]["rim_r"].GetDouble();
+
+                entt::id_type Id = j["params"]["eid"].GetInt();
+
+                auto ci = Id2EntityMap_.find(Id);
+                if (ci != Id2EntityMap_.end())
+                {
+                    auto& Tire = Reg_.emplace_or_replace<TireComponent>(ci->second, RimX, RimY, RimR);
+                    for (auto i=0u; i<TireComponent::SEGMENTS; ++i)
+                    {
+                        Tire.RubberX[i] = j["params"]["rubber"][i*2].GetDouble();
+                        Tire.RubberY[i] = j["params"]["rubber"][i*2+1].GetDouble();
+                    }
+                }
+                else
+                {
+                    auto e = Reg_.create();
+                    auto& Tire = Reg_.emplace<TireComponent>(e, RimX, RimY, RimR);
+                    for (auto i=0u; i<TireComponent::SEGMENTS; ++i)
+                    {
+                        Tire.RubberX[i] = j["params"]["rubber"][i*2].GetDouble();
+                        Tire.RubberY[i] = j["params"]["rubber"][i*2+1].GetDouble();
+                    }
+                    UI.addCamHook(e, "Tire");
+                    Id2EntityMap_[Id] = e;
+                }
+            }
         }
         it = j.FindMember("result");
         if (it != j.MemberEnd())

@@ -1,10 +1,12 @@
 #include "render_system.hpp"
 
+#include <Corrade/Containers/ArrayViewStl.h>
 #include <Magnum/GL/Renderer.h>
 #include <Magnum/GL/TextureFormat.h>
 #include <Magnum/MeshTools/Compile.h>
 #include <Magnum/Primitives/Circle.h>
 #include <Magnum/Primitives/Line.h>
+#include <Magnum/Shaders/VertexColor.h>
 #include <Magnum/Trade/MeshData.h>
 
 #include "components.hpp"
@@ -117,7 +119,7 @@ void RenderSystem::renderScene()
         Zoom.t = Zoom.z;
     }
     if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
-    else if (Zoom.z > 100.0) Zoom.z = 100.0;
+    else if (Zoom.z > 1000.0) Zoom.z = 1000.0;
 
     // Remove all "inside" tags from objects
     // After that, test all objects for camera viewport and tag
@@ -224,6 +226,101 @@ void RenderSystem::renderScene()
             Shader_.draw(CircleShapes_[1]);
         else
             Shader_.draw(CircleShapes_[2]);
+    });
+
+    Reg_.view<TireComponent>().each(
+        [&](auto _e, const auto& _t)
+    {
+        auto x = _t.RimX;
+        auto y = _t.RimY;
+
+        x += CamPosSys.x - HookPosSys.x;
+        y += CamPosSys.y - HookPosSys.y;
+
+        x += CamPos.x;
+        y += CamPos.y;
+
+        if (HookPos != nullptr)
+        {
+            x -= HookPos->x;
+            y -= HookPos->y;
+        }
+
+        x *= Zoom.z;
+        y *= Zoom.z;
+
+        auto r = _t.RimR;
+        r *= Zoom.z;
+        double RenderScale = 1.0;
+        if (RenderResFactor_ < 1.0) RenderScale = 1.0/RenderResFactor_;
+        if (r < RenderScale)
+        {
+            r=RenderScale;
+        }
+
+        Shader_.setTransformationProjectionMatrix(
+            ProjectionScene_ *
+            Matrix3::translation(Vector2(x, y)) *
+            Matrix3::scaling(Vector2(r, r))
+        );
+
+        Shader_.setColor({1.0, 1.0, 1.0});
+        if (r < 10)
+            Shader_.draw(CircleShapes_[0]);
+        else if (r < 300)
+            Shader_.draw(CircleShapes_[1]);
+        else
+            Shader_.draw(CircleShapes_[2]);
+
+        std::array<Vector2, TireComponent::SEGMENTS> VertsTire;
+        for (auto i=0u; i<TireComponent::SEGMENTS; ++i)
+        {
+            auto x = _t.RubberX[i];
+            auto y = _t.RubberY[i];
+
+            x += CamPosSys.x - HookPosSys.x;
+            y += CamPosSys.y - HookPosSys.y;
+
+            x += CamPos.x;
+            y += CamPos.y;
+
+            if (HookPos != nullptr)
+            {
+                x -= HookPos->x;
+                y -= HookPos->y;
+            }
+
+            x *= Zoom.z;
+            y *= Zoom.z;
+
+            auto r = 1.0;
+            r *= Zoom.z;
+            double RenderScale = 1.0;
+            if (RenderResFactor_ < 1.0) RenderScale = 1.0/RenderResFactor_;
+            if (r < RenderScale)
+            {
+                r=RenderScale;
+            }
+            VertsTire[i] = {x, y};
+        }
+
+        GL::Mesh Mesh;
+        GL::Buffer Buffer;
+        Buffer.setData(VertsTire, GL::BufferUsage::DynamicDraw);
+        Mesh.setCount(TireComponent::SEGMENTS)
+            .setPrimitive(GL::MeshPrimitive::LineLoop)
+            .addVertexBuffer(std::move(Buffer), 0, Shaders::VertexColor2D::Position{});
+
+        Shader_.setTransformationProjectionMatrix(
+            ProjectionScene_ *
+            Matrix3::translation(Vector2(0.0, 0.0)) *
+            Matrix3::scaling(Vector2(1.0, 1.0))
+        );
+
+        Magnum::GL::Renderer::setLineWidth(RenderScale*2.0);
+        Shader_.draw(Mesh);
+        Magnum::GL::Renderer::setLineWidth(1.0f);
+
     });
 
     this->blurSceneSSAA();

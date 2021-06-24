@@ -75,6 +75,17 @@ struct StarDataComponent
     double Temperature{0.0};
 };
 
+struct TireComponent
+{
+    constexpr static int SEGMENTS = 64;
+
+    double RimX{0.0};
+    double RimY{0.0};
+    double RimR{1.0};
+    std::array<double, SEGMENTS> RubberX;
+    std::array<double, SEGMENTS> RubberY;
+};
+
 struct VelocityComponent
 {
     double x{0.0};
