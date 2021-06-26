@@ -194,14 +194,17 @@ void UIManager::processConnections()
 {
     auto& Network = Reg_.ctx<NetworkManager>();
 
-    std::string Uri = "ws://localhost:9002/?id=1";
+    static char Msg[128] ="ws://localhost:9002/?id=1";
+
     if (Network.isConnected())
     {
         if (ImGui::Button("Disconnect")) Network.disconnect();
     }
     else
     {
-        if (ImGui::Button("Connect")) Network.connect(Uri);
+        if (ImGui::Button("Connect")) Network.connect(Msg);
+        ImGui::SameLine();
+        ImGui::InputText("##Server", Msg, IM_ARRAYSIZE(Msg));
     }
 }
 

@@ -77,7 +77,7 @@ struct StarDataComponent
 
 struct TireComponent
 {
-    constexpr static int SEGMENTS = 64;
+    constexpr static int SEGMENTS = 32;
 
     double RimX{0.0};
     double RimY{0.0};
