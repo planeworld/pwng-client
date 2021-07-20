@@ -145,7 +145,7 @@ echo "--- INSTALLING CORRADE ---"
 cd corrade
 mkdir -p build
 cd build
-cmake .. -DCMAKE_PREFIX_PATH=../../../install -DCMAKE_INSTALL_PREFIX=../../../install -DCMAKE_BUILD_TYPE=RELEASE -DBUILD_DEPRECATED=OFF > /dev/null
+cmake .. -DCMAKE_PREFIX_PATH=../../../install -DCORRADE_BUILD_MULTITHREADED=ON -DCMAKE_INSTALL_PREFIX=../../../install -DCMAKE_BUILD_TYPE=RELEASE -DBUILD_DEPRECATED=OFF > /dev/null
 make -j8 install > /dev/null
 cd ../..
 
@@ -180,5 +180,5 @@ cd ../..
 # Add modules
 echo "--- ADDING MODULES ---"
 mkdir -p modules
-cp magnum-integration/modules/* modules/
+cp magnum-integration/modules/* ../install/share/cmake/
 cd ../..

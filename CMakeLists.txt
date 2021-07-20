@@ -8,7 +8,7 @@ else()
     add_compile_options(-mtune=native -Wall -Wextra -pedantic)
 endif()
 
-set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/3rdparty/modules" ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/install/share/cmake" ${CMAKE_MODULE_PATH})
 
 find_package(Corrade REQUIRED Main)
 find_package(Magnum REQUIRED
