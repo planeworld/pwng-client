@@ -96,10 +96,10 @@ void RenderSystem::renderScene()
     // FBO viewport may not exceed maximum size of underlying texture. Above
     // this size, texture won't be pixel perfect but interpolated
     //
-    GL::Renderer::setScissor({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}});
+    GL::Renderer::setScissor({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}});
 
     FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
-                         .setViewport({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}})
+                         .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}})
                          .bind();
 
     auto& HookPosSys = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
@@ -301,7 +301,7 @@ void RenderSystem::renderScene()
             {
                 r=RenderScale;
             }
-            VertsTire[i] = {x, y};
+            VertsTire[i] = {float(x), float(y)};
         }
 
         GL::Mesh Mesh;
@@ -462,7 +462,7 @@ void RenderSystem::blurSceneSSAA()
         std::swap(TexMainDisplayFront_, TexMainDisplayBack_);
 
         FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
-                            .setViewport({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}})
+                            .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}})
                             .bind();
 
         ShaderBlur5x1_.bindTexture(*TexMainDisplayBack_)
@@ -473,7 +473,7 @@ void RenderSystem::blurSceneSSAA()
         std::swap(TexMainDisplayFront_, TexMainDisplayBack_);
 
         FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
-                            .setViewport({{0, 0}, {WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_}})
+                            .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}})
                             .bind();
 
         ShaderBlur5x1_.bindTexture(*TexMainDisplayBack_)
