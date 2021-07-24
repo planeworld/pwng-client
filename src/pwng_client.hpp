@@ -10,6 +10,7 @@
 #include "color_palette.hpp"
 #include "performance_timers.hpp"
 #include "scale_unit.hpp"
+#include "sim_timer.hpp"
 
 using namespace Magnum;
 
@@ -43,6 +44,7 @@ class PwngClient : public Magnum::Platform::Application
         void updateUI();
 
         PerformanceTimers Timers_;
+        SimTimer SimTime_;
 
         //--- Graphics ---//
         std::unordered_map<std::uint32_t, entt::entity> Id2EntityMap_;

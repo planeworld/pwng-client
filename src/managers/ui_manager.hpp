@@ -13,6 +13,7 @@
 #include "components.hpp"
 #include "performance_timers.hpp"
 #include "scale_unit.hpp"
+#include "sim_timer.hpp"
 
 class UIManager
 {
@@ -33,7 +34,7 @@ class UIManager
         void displayHelp();
         void displayObjectLabels(entt::entity _Cam);
         void displayPerformance(PerformanceTimers& _Timers);
-        void displayScale(const int _Scale, const ScaleUnitE _ScaleUnit);
+        void displayScaleAndTime(const int _Scale, const ScaleUnitE _ScaleUnit, const SimTimer& _SimTime);
         void finishSystemsTransfer();
         void processCameraHooks(entt::entity _Cam);
         void processClientControl();

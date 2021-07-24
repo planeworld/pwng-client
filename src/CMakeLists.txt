@@ -17,6 +17,7 @@ set(HEADERS
   pwng_client.hpp
   scale_unit.hpp
   shader_path.hpp
+  sim_timer.hpp
   timer.hpp
 )
 
@@ -27,6 +28,7 @@ set(SOURCES
   managers/ui_manager.cpp
   systems/render_system.cpp
   pwng_client.cpp
+  sim_timer.cpp
 )
 
 add_executable(pwng-client ${LIB_NOISE_HEADERS} ${HEADERS} ${SOURCES})

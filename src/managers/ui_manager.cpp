@@ -107,7 +107,8 @@ void UIManager::displayPerformance(PerformanceTimers& _Timers)
     ImGui::Unindent();
 }
 
-void UIManager::displayScale(const int _Scale, const ScaleUnitE _ScaleUnit)
+void UIManager::displayScaleAndTime(const int _Scale, const ScaleUnitE _ScaleUnit,
+                                    const SimTimer& _SimTime)
 {
     ImGuiWindowFlags WindowFlags =  ImGuiWindowFlags_NoDecoration |
                                     ImGuiWindowFlags_AlwaysAutoResize |
@@ -117,6 +118,10 @@ void UIManager::displayScale(const int _Scale, const ScaleUnitE _ScaleUnit)
                                     ImGuiWindowFlags_NoNav |
                                     ImGuiWindowFlags_NoMove;
     bool CloseButton{false};
+
+    auto UIStyle = &ImGui::GetStyle();
+    UIStyle->WindowRounding = 0.0f;
+    // UIStyle->WindowBorderSize = 0.0f;
 
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2, 40), ImGuiCond_Always, ImVec2(0.5f,0.5f));
     ImGui::Begin("Scale", &CloseButton, WindowFlags);
@@ -132,6 +137,19 @@ void UIManager::displayScale(const int _Scale, const ScaleUnitE _ScaleUnit)
         else if (_ScaleUnit == ScaleUnitE::M)
             ImGui::Text("Scale: %d m", l);
     ImGui::End();
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2,
+                                   ImGui::GetIO().DisplaySize.y - 40), ImGuiCond_Always, ImVec2(0.5f,0.5f));
+    ImGui::Begin("Time", &CloseButton, WindowFlags);
+    ImGui::Text("Time: %dy %dd %dh %dm %ds",
+                _SimTime.getYears(),
+                _SimTime.getDaysFraction(),
+                _SimTime.getHoursFraction(),
+                _SimTime.getMinutesFraction(),
+                _SimTime.getSecondsFraction());
+    ImGui::End();
+
+    UIStyle->WindowRounding = 5.0f;
+    // UIStyle->WindowBorderSize = 1.0f;
 }
 
 void UIManager::finishSystemsTransfer()
