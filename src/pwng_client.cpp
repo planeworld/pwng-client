@@ -156,6 +156,7 @@ void PwngClient::getObjectsFromQueue()
     auto& Names = Reg_.ctx<NameSystem>();
     auto& UI = Reg_.ctx<UIManager>();
 
+    bool NewHooks = false;
     std::string Data;
     while (InputQueue_.try_dequeue(Data))
     {
@@ -267,17 +268,21 @@ void PwngClient::getObjectsFromQueue()
                     Reg_.emplace<NameComponent>(e);
                     Names.setName(e, n);
                     UI.addCamHook(e, n);
+                    NewHooks = true;
                     Id2EntityMap_[Id] = e;
                     // DBLK(Messages.report("prg", "Entity created", MessageHandler::DEBUG_L2);)
                 }
             }
-            else if (j["method"] == "sim_stats")
+            else if (j["method"] == "perf_stats")
             {
-                SimTime_.fromStamp(j["params"]["ts"].GetString());
                 Timers_.ServerPhysicsFrameTimeAvg.addValue(j["params"]["t_phy"].GetDouble());
                 Timers_.ServerQueueInFrameTimeAvg.addValue(j["params"]["t_queue_in"].GetDouble());
                 Timers_.ServerQueueOutFrameTimeAvg.addValue(j["params"]["t_queue_out"].GetDouble());
                 Timers_.ServerSimFrameTimeAvg.addValue(j["params"]["t_sim"].GetDouble());
+            }
+            else if (j["method"] == "sim_stats")
+            {
+                SimTime_.fromStamp(j["params"]["ts"].GetString());
             }
             else if (j["method"] == "tire_data")
             {
@@ -290,7 +295,9 @@ void PwngClient::getObjectsFromQueue()
                 auto ci = Id2EntityMap_.find(Id);
                 if (ci != Id2EntityMap_.end())
                 {
-                    auto& Tire = Reg_.emplace_or_replace<TireComponent>(ci->second, RimX, RimY, RimR);
+                    Reg_.emplace_or_replace<PositionComponent>(ci->second, RimX, RimY);
+
+                    auto& Tire = Reg_.emplace_or_replace<TireComponent>(ci->second, RimR);
                     for (auto i=0u; i<TireComponent::SEGMENTS; ++i)
                     {
                         Tire.RubberX[i] = j["params"]["rubber"][i*2].GetDouble();
@@ -301,12 +308,17 @@ void PwngClient::getObjectsFromQueue()
                 {
                     auto e = Reg_.create();
                     auto& Tire = Reg_.emplace<TireComponent>(e, RimX, RimY, RimR);
+
+                    Reg_.emplace<SystemPositionComponent>(e, 0.0, 0.0);
+                    Reg_.emplace<PositionComponent>(e, RimX, RimY);
+
                     for (auto i=0u; i<TireComponent::SEGMENTS; ++i)
                     {
                         Tire.RubberX[i] = j["params"]["rubber"][i*2].GetDouble();
                         Tire.RubberY[i] = j["params"]["rubber"][i*2+1].GetDouble();
                     }
                     UI.addCamHook(e, "Tire");
+                    NewHooks = true;
                     Id2EntityMap_[Id] = e;
                 }
             }
@@ -316,9 +328,14 @@ void PwngClient::getObjectsFromQueue()
         {
             if (j["result"] == "success")
             {
+                NewHooks = true;
                 UI.finishSystemsTransfer();
                 DBLK(Messages.report("prg", "Receiving systems successful", MessageHandler::DEBUG_L1);)
             }
+        }
+        if (NewHooks)
+        {
+            UI.finishSystemsTransfer();
         }
     }
     Timers_.Queue.stop();
@@ -425,9 +442,16 @@ void PwngClient::updateUI()
                     Renderer.setRenderResFactor(RenderResolutionFactor);
 
             ImGui::Unindent();
+
+            ImGui::TextColored(ImVec4(1,1,0,1), "Subscriptions");
+            ImGui::Indent();
+                UI.processSubscriptions();
+                UI.processStarSystems();
+            ImGui::Unindent();
+
+            ImGui::TextColored(ImVec4(1,1,0,1), "Camera Hooks");
             ImGui::Indent();
                 UI.processCameraHooks(Camera);
-                UI.processSubscriptions();
             ImGui::Unindent();
 
             ImGui::TextColored(ImVec4(1,1,0,1), "Server control");

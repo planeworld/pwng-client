@@ -79,8 +79,6 @@ struct TireComponent
 {
     constexpr static int SEGMENTS = 32;
 
-    double RimX{0.0};
-    double RimY{0.0};
     double RimR{1.0};
     std::array<double, SEGMENTS> RubberX;
     std::array<double, SEGMENTS> RubberY;

@@ -228,11 +228,11 @@ void RenderSystem::renderScene()
             Shader_.draw(CircleShapes_[2]);
     });
 
-    Reg_.view<TireComponent>().each(
-        [&](auto _e, const auto& _t)
+    Reg_.view<TireComponent, PositionComponent>().each(
+        [&](auto _e, const auto& _t, const auto& _p)
     {
-        auto x = _t.RimX;
-        auto y = _t.RimY;
+        auto x = _p.x;
+        auto y = _p.y;
 
         x += CamPosSys.x - HookPosSys.x;
         y += CamPosSys.y - HookPosSys.y;

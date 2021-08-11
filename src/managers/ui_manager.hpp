@@ -27,7 +27,7 @@ class UIManager
                 Reg_(_Reg),
                 QueueIn_(_QueueIn),
                 QueueOut_(_QueueOut),
-                ImGUI_(_ImGUI) {}
+                ImGUI_(_ImGUI) {this->initSubscriptions();}
 
         void addCamHook(entt::entity _e, const std::string& _n);
         void addSystem(entt::entity _e, const std::string& _n);
@@ -43,10 +43,13 @@ class UIManager
         void processObjectLabels();
         void processServerControl();
         void processSubscriptions();
+        void processStarSystems();
         void processVerbosity();
 
 
     private:
+
+        void initSubscriptions();
 
         entt::registry& Reg_;
         Magnum::ImGuiIntegration::Context& ImGUI_;
@@ -57,9 +60,13 @@ class UIManager
         std::map<std::string, entt::entity> CamHooks_;
         std::set<std::string> NamesSubSystemsSet_;
         std::set<std::string> NamesUnsubSystemsSet_;
+        std::set<std::string> NamesSubsSet_;
+        std::set<std::string> NamesUnsubsSet_;
         std::vector<std::string> NamesCamHooks_;
         std::vector<std::string> NamesSubSystems_;
         std::vector<std::string> NamesUnsubSystems_;
+        std::vector<std::string> NamesSubs_;
+        std::vector<std::string> NamesUnsubs_;
         // std::vector<entt::entity> EntitiesCamHook_;
 
         bool Labels_{false};

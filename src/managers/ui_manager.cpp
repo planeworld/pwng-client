@@ -166,8 +166,6 @@ void UIManager::finishSystemsTransfer()
 
 void UIManager::processCameraHooks(entt::entity _Cam)
 {
-    ImGui::TextColored(ImVec4(1,1,0,1), "Camera Hooks");
-
     static int CamHook{0};
     if (ImGui::Combo("Select Hook", &CamHook, NamesCamHooks_))
     {
@@ -196,14 +194,24 @@ void UIManager::processClientControl()
         Json.createRequest("get_data").finalise();
         QueueOut_->enqueue(Json.getString());
     }
+    if (ImGui::Button("Subscribe: All"))
+    {
+        Json.createRequest("sub_all").finalise();
+        QueueOut_->enqueue(Json.getString());
+    }
     if (ImGui::Button("Subscribe: Dynamic Data"))
     {
         Json.createRequest("sub_dynamic_data").finalise();
         QueueOut_->enqueue(Json.getString());
     }
-    if (ImGui::Button("Subscribe: Server Stats"))
+    if (ImGui::Button("Subscribe: Performance Stats"))
     {
-        Json.createRequest("sub_server_stats").finalise();
+        Json.createRequest("sub_perf_stats").finalise();
+        QueueOut_->enqueue(Json.getString());
+    }
+    if (ImGui::Button("Subscribe: Simulation Stats"))
+    {
+        Json.createRequest("sub_sim_stats").finalise();
         QueueOut_->enqueue(Json.getString());
     }
 }
@@ -282,8 +290,51 @@ void UIManager::processServerControl()
 
 void UIManager::processSubscriptions()
 {
+    static int Subs{0};
+    if (ImGui::Combo("Subscribe", &Subs, NamesSubs_))
+    {
+        auto& Json = Reg_.ctx<JsonManager>();
+
+        std::string Name = NamesSubs_[Subs];
+
+        NamesUnsubsSet_.insert(Name);
+        NamesSubsSet_.erase(Name);
+
+        NamesSubs_.assign(NamesSubsSet_.cbegin(), NamesSubsSet_.cend());
+        NamesUnsubs_.assign(NamesUnsubsSet_.cbegin(), NamesUnsubsSet_.cend());
+
+        Json.createRequest(Name)
+            .finalise();
+        QueueOut_->enqueue(Json.getString());
+
+        Subs = 0;
+    }
+
+    static int Unsubs{0};
+    if (ImGui::Combo("Unsubscribe", &Unsubs, NamesUnsubs_))
+    {
+        auto& Json = Reg_.ctx<JsonManager>();
+
+        std::string Name = NamesUnsubs_[Unsubs];
+
+        NamesSubsSet_.insert(Name);
+        NamesUnsubsSet_.erase(Name);
+
+        NamesSubs_.assign(NamesSubsSet_.cbegin(), NamesSubsSet_.cend());
+        NamesUnsubs_.assign(NamesUnsubsSet_.cbegin(), NamesUnsubsSet_.cend());
+
+        Json.createRequest("un"+Name)
+            .finalise();
+        QueueOut_->enqueue(Json.getString());
+
+        Unsubs = 0;
+    }
+}
+
+void UIManager::processStarSystems()
+{
     static int StarSystemSub{0};
-    if (ImGui::Combo("Subscribe", &StarSystemSub, NamesSubSystems_))
+    if (ImGui::Combo("Subscribe System", &StarSystemSub, NamesSubSystems_))
     {
         auto& Json = Reg_.ctx<JsonManager>();
 
@@ -303,7 +354,7 @@ void UIManager::processSubscriptions()
         StarSystemSub = 0;
     }
     static int StarSystemUnsub{0};
-    if (ImGui::Combo("Unsubscribe", &StarSystemUnsub, NamesUnsubSystems_))
+    if (ImGui::Combo("Unsubscribe System", &StarSystemUnsub, NamesUnsubSystems_))
     {
         auto& Json = Reg_.ctx<JsonManager>();
 
@@ -341,6 +392,25 @@ void UIManager::processVerbosity()
         ImGui::Unindent();
         Messages.setLevel(MessageHandler::ReportLevelType(DebugLevel));
     )
+}
+
+void UIManager::initSubscriptions()
+{
+    NamesSubsSet_.insert("sub_dynamic_data");
+    NamesSubsSet_.insert("sub_perf_stats_f0");
+    NamesSubsSet_.insert("sub_perf_stats_f0.1");
+    NamesSubsSet_.insert("sub_perf_stats_f0.5");
+    NamesSubsSet_.insert("sub_perf_stats_f1");
+    NamesSubsSet_.insert("sub_perf_stats_f5");
+    NamesSubsSet_.insert("sub_perf_stats_f10");
+    NamesSubsSet_.insert("sub_sim_stats_f0");
+    NamesSubsSet_.insert("sub_sim_stats_f0.1");
+    NamesSubsSet_.insert("sub_sim_stats_f0.5");
+    NamesSubsSet_.insert("sub_sim_stats_f1");
+    NamesSubsSet_.insert("sub_sim_stats_f5");
+    NamesSubsSet_.insert("sub_sim_stats_f10");
+
+    NamesSubs_.assign(NamesSubsSet_.cbegin(), NamesSubsSet_.cend());
 }
 
 namespace ImGui
