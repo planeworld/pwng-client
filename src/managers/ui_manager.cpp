@@ -189,9 +189,9 @@ void UIManager::processClientControl()
 {
     auto& Json = Reg_.ctx<JsonManager>();
 
-    if (ImGui::Button("Get Static Galaxy Data"))
+    if (ImGui::Button("Subscribe Galaxy Data"))
     {
-        Json.createRequest("get_data").finalise();
+        Json.createRequest("sub_galaxy_data").finalise();
         QueueOut_->enqueue(Json.getString());
     }
     if (ImGui::Button("Subscribe: All"))
