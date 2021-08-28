@@ -273,17 +273,17 @@ void UIManager::processServerControl()
     }
     if (ImGui::Button("Start Simulation"))
     {
-        Json.createRequest("start_simulation").finalise();
+        Json.createRequest("cmd_start_simulation").finalise();
         QueueOut_->enqueue(Json.getString());
     }
     if (ImGui::Button("Stop Simulation"))
     {
-        Json.createRequest("stop_simulation").finalise();
+        Json.createRequest("cmd_stop_simulation").finalise();
         QueueOut_->enqueue(Json.getString());
     }
     if (ImGui::Button("Shutdown Server"))
     {
-        Json.createRequest("shutdown").finalise();
+        Json.createRequest("cmd_shutdown").finalise();
         QueueOut_->enqueue(Json.getString());
     }
 }
