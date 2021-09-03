@@ -155,9 +155,11 @@ echo "--- INSTALLING MAGNUM ---"
 cd magnum
 mkdir -p build
 cd build
-cmake .. -DCMAKE_PREFIX_PATH=../../../install -DCMAKE_INSTALL_PREFIX=../../../install -DCMAKE_BUILD_TYPE=RELEASE -DBUILD_DEPRECATED=OFF -DWITH_DEBUGTOOLS=ON -DWITH_GLFWAPPLICATION=ON > /dev/null
+cmake .. -DCMAKE_PREFIX_PATH=../../../install -DCMAKE_INSTALL_PREFIX=../../../install -DCMAKE_BUILD_TYPE=RELEASE -DBUILD_DEPRECATED=OFF -DWITH_DEBUGTOOLS=ON -DWITH_GLFWAPPLICATION=ON -DWITH_SDL2APPLICATION=OFF > /dev/null
 make -j8 install > /dev/null
 cd ../..
+
+cp magnum/modules/FindGLFW.cmake ../install/share/cmake/
 
 # Install imgui
 
