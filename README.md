@@ -12,3 +12,7 @@ Since the default desktop client shows a lot of the underlying server simulation
 ![Very early galaxy representation](screenshots/galaxy_2021-04-09.png?raw=true)
 
 *Figure 1: Galaxy representation using Magnum.Graphics and EnTT. The galaxy is generated procedurally by incoporating distributions of stars and their features from information publicy available*
+
+## Branches
+
+The *master* branch uses SDL2 to initialise a window and an OpenGL context. If you prefer GLFW over SDL2, feel free to choose the *glfw* branch.
