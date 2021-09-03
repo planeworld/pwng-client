@@ -155,7 +155,7 @@ echo "--- INSTALLING MAGNUM ---"
 cd magnum
 mkdir -p build
 cd build
-cmake .. -DCMAKE_PREFIX_PATH=../../../install -DCMAKE_INSTALL_PREFIX=../../../install -DCMAKE_BUILD_TYPE=RELEASE -DBUILD_DEPRECATED=OFF -DWITH_DEBUGTOOLS=ON -DWITH_SDL2APPLICATION=ON > /dev/null
+cmake .. -DCMAKE_PREFIX_PATH=../../../install -DCMAKE_INSTALL_PREFIX=../../../install -DCMAKE_BUILD_TYPE=RELEASE -DBUILD_DEPRECATED=OFF -DWITH_DEBUGTOOLS=ON -DWITH_GLFWAPPLICATION=ON > /dev/null
 make -j8 install > /dev/null
 cd ../..
 

@@ -5,7 +5,7 @@
 #include <unordered_map>
 
 #include <entt/entity/entity.hpp>
-#include <Magnum/Platform/Sdl2Application.h>
+#include <Magnum/Platform/GlfwApplication.h>
 
 #include "color_palette.hpp"
 #include "performance_timers.hpp"

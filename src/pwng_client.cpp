@@ -22,7 +22,7 @@
 #include "render_system.hpp"
 #include "ui_manager.hpp"
 
-PwngClient::PwngClient(const Arguments& arguments): Platform::Application{arguments, NoCreate}
+PwngClient::PwngClient(const Arguments& arguments): Platform::GlfwApplication{arguments, NoCreate}
 
 {
     Reg_.set<JsonManager>(Reg_);
@@ -46,7 +46,7 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
     Reg_.ctx<RenderSystem>().setupCamera();
     Reg_.ctx<RenderSystem>().setupGraphics();
     setSwapInterval(1);
-    setMinimalLoopPeriod(1.0f/60.0f * 1000.0f);
+    // setMinimalLoopPeriod(1.0f/60.0f * 1000.0f);
 }
 
 void PwngClient::drawEvent()
@@ -433,7 +433,7 @@ void PwngClient::updateUI()
                 if (ImGui::Button("Quit Client"))
                 {
                     Network.quit();
-                    Platform::Application::Sdl2Application::exit();
+                    Platform::Application::GlfwApplication::exit();
                 }
                 UI.processVerbosity();
 
@@ -480,4 +480,4 @@ void PwngClient::updateUI()
     GL::Renderer::BlendFunction::OneMinusSourceAlpha);
 }
 
-MAGNUM_APPLICATION_MAIN(PwngClient)
+MAGNUM_GLFWAPPLICATION_MAIN(PwngClient)

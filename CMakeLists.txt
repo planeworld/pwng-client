@@ -14,7 +14,7 @@ find_package(Corrade REQUIRED Main)
 find_package(Magnum REQUIRED
     GL
     MeshTools
-    Sdl2Application
+    GlfwApplication
     Primitives
     Shaders
     )

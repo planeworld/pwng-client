@@ -43,7 +43,7 @@ target_include_directories(pwng-client PRIVATE ${ImGui_INCLUDE_DIR})
 
 target_link_libraries(pwng-client PRIVATE
   Corrade::Main
-  Magnum::Application
+  Magnum::GlfwApplication
   Magnum::GL
   Magnum::Magnum
   Magnum::Primitives
