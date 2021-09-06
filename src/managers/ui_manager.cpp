@@ -189,14 +189,20 @@ void UIManager::processClientControl()
 {
     auto& Json = Reg_.ctx<JsonManager>();
 
-    if (ImGui::Button("Subscribe Galaxy Data"))
+    if (ImGui::Button("Subscribe: All"))
     {
         Json.createRequest("sub_galaxy_data").finalise();
         QueueOut_->enqueue(Json.getString());
+        Json.createRequest("sub_dynamic_data").finalise();
+        QueueOut_->enqueue(Json.getString());
+        Json.createRequest("sub_perf_stats").finalise();
+        QueueOut_->enqueue(Json.getString());
+        Json.createRequest("sub_sim_stats").finalise();
+        QueueOut_->enqueue(Json.getString());
     }
-    if (ImGui::Button("Subscribe: All"))
+    if (ImGui::Button("Subscribe: Galaxy Data"))
     {
-        Json.createRequest("sub_all").finalise();
+        Json.createRequest("sub_galaxy_data").finalise();
         QueueOut_->enqueue(Json.getString());
     }
     if (ImGui::Button("Subscribe: Dynamic Data"))
