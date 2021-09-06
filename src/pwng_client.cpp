@@ -29,7 +29,7 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
     Reg_.set<MessageHandler>();
     Reg_.set<NameSystem>(Reg_);
     Reg_.set<NetworkManager>(Reg_);
-    Reg_.set<RenderSystem>(Reg_);
+    Reg_.set<RenderSystem>(Reg_, Timers_);
     Reg_.set<UIManager>(Reg_, ImGUI_, &InputQueue_, &OutputQueue_);
 
     auto& Messages = Reg_.ctx<MessageHandler>();

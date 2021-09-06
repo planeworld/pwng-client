@@ -14,8 +14,9 @@
 
 using namespace Magnum;
 
-RenderSystem::RenderSystem(entt::registry& _Reg) :
+RenderSystem::RenderSystem(entt::registry& _Reg, PerformanceTimers& _Timers) :
     Reg_(_Reg),
+    Timers_(_Timers),
     TemperaturePalette_(_Reg, 256, {0.95, 0.58, 0.26}, {0.47, 0.56, 1.0})
 {}
 
@@ -124,7 +125,7 @@ void RenderSystem::renderScene()
     // Remove all "inside" tags from objects
     // After that, test all objects for camera viewport and tag
     // appropriatly
-    // Timers_.ViewportTest.start();
+    Timers_.ViewportTest.start();
 
     Reg_.clear<InsideViewportTag>();
 
@@ -164,10 +165,10 @@ void RenderSystem::renderScene()
                 Reg_.emplace<InsideViewportTag>(_e);
             }
         });
-    // Timers_.ViewportTest.stop();
-    // Timers_.ViewportTestAvg.addValue(Timers_.ViewportTest.elapsed());
+    Timers_.ViewportTest.stop();
+    Timers_.ViewportTestAvg.addValue(Timers_.ViewportTest.elapsed());
 
-    // Timers_.Render.start();
+    Timers_.Render.start();
     Reg_.view<SystemPositionComponent, RadiusComponent, InsideViewportTag>().each(
         [&](auto _e, const auto& _p, const auto& _r)
     {
@@ -337,8 +338,8 @@ void RenderSystem::renderScene()
                       .draw(MeshMainDisplay_);
 
 
-    // Timers_.Render.stop();
-    // Timers_.RenderAvg.addValue(Timers_.Render.elapsed());
+    Timers_.Render.stop();
+    Timers_.RenderAvg.addValue(Timers_.Render.elapsed());
 }
 
 void RenderSystem::setupCamera()

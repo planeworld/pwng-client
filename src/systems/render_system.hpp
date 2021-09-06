@@ -31,7 +31,7 @@ class RenderSystem
         // likely not used
         static constexpr int TEXTURE_SIZE_MAX = 16384;
 
-        explicit RenderSystem(entt::registry& _Reg);
+        explicit RenderSystem(entt::registry& _Reg, PerformanceTimers& _Timers);
 
         entt::entity getCamera() const {return Camera_;}
         int getScale() const {return Scale_;}
@@ -50,6 +50,7 @@ class RenderSystem
         void updateRenderResFactor();
 
         entt::registry& Reg_;
+        PerformanceTimers& Timers_;
 
         double RenderResFactor_{2.0};
         double RenderResFactorTarget_{2.0};
