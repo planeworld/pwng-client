@@ -140,7 +140,7 @@ void UIManager::displayScaleAndTime(const int _Scale, const ScaleUnitE _ScaleUni
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2,
                                    ImGui::GetIO().DisplaySize.y - 40), ImGuiCond_Always, ImVec2(0.5f,0.5f));
     ImGui::Begin("Time", &CloseButton, WindowFlags);
-    ImGui::Text("Time: %dy %dd %dh %dm %ds",
+    ImGui::Text("Time: %dy %3.1dd %2.1dh %2.1dm %2.1ds",
                 _SimTime.getYears(),
                 _SimTime.getDaysFraction(),
                 _SimTime.getHoursFraction(),
