@@ -5,7 +5,11 @@
 
 #include <entt/entity/registry.hpp>
 #include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
+#ifdef NDEBUG
+        #include <rapidjson/writer.h>
+#else
+        #include <rapidjson/prettywriter.h>
+#endif
 
 #include "message_handler.hpp"
 
@@ -28,6 +32,9 @@ class JsonManager
 
         JsonManager& createNotification(const std::string& _Notification);
         JsonManager& createRequest(const std::string& _Req);
+
+        // Errors
+        JsonManager& createError();
 
         // Single value results
         JsonManager& createResult(const bool _r);
@@ -70,6 +77,7 @@ class JsonManager
 
         void createHeaderJsonRcp();
         void createHeaderNotificationRequest(const std::string& _m);
+        void createHeaderError();
         void createHeaderResult();
         DBLK(
             void checkCreate();
@@ -78,7 +86,11 @@ class JsonManager
         entt::registry& Reg_;
 
         StringBuffer Buffer_;
-        Writer<StringBuffer> Writer_{Buffer_};
+        #ifdef NDEBUG
+                Writer<StringBuffer> Writer_{Buffer_};
+        #else
+                PrettyWriter<StringBuffer> Writer_{Buffer_};
+        #endif
         MessageType MessageType_{MessageType::REQUEST};
 
         DBLK(
