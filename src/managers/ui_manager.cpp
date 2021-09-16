@@ -277,15 +277,21 @@ void UIManager::processServerControl()
         Json.createRequest(Msg).finalise();
         QueueOut_->enqueue(Json.getString());
     }
-    if (ImGui::Button("Accelerate Simulation"))
+    static int Acceleration = 0;
+    ImGui::Text("Accelerate Simulation");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100);
+    if (ImGui::SliderInt("##acc", &Acceleration, -1, 6, ""))
     {
         Json.createRequest("cmd_accelerate_simulation")
             .beginArray("params")
-            .addValue(10000.0)
+            .addValue(std::pow(10.0, Acceleration))
             .endArray()
             .finalise();
         QueueOut_->enqueue(std::string(Json.getString()));
     }
+    ImGui::SameLine();
+    ImGui::Text("x%.1f", std::pow(10.0, Acceleration));
     if (ImGui::Button("Start Simulation"))
     {
         Json.createRequest("cmd_start_simulation").finalise();
