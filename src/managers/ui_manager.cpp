@@ -277,6 +277,15 @@ void UIManager::processServerControl()
         Json.createRequest(Msg).finalise();
         QueueOut_->enqueue(Json.getString());
     }
+    if (ImGui::Button("Accelerate Simulation"))
+    {
+        Json.createRequest("cmd_accelerate_simulation")
+            .beginArray("params")
+            .addValue(10000.0)
+            .endArray()
+            .finalise();
+        QueueOut_->enqueue(std::string(Json.getString()));
+    }
     if (ImGui::Button("Start Simulation"))
     {
         Json.createRequest("cmd_start_simulation").finalise();
