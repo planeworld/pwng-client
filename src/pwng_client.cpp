@@ -283,6 +283,7 @@ void PwngClient::getObjectsFromQueue()
             else if (j["method"] == "sim_stats")
             {
                 SimTime_.fromStamp(j["params"]["ts"].GetString());
+                SimTime_.setAcceleration(j["params"]["ts_f"].GetDouble());
             }
             else if (j["method"] == "tire_data")
             {
@@ -456,7 +457,7 @@ void PwngClient::updateUI()
 
             ImGui::TextColored(ImVec4(1,1,0,1), "Server control");
             ImGui::Indent();
-                UI.processServerControl();
+                UI.processServerControl(SimTime_.getAcceleration());
             ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Display");
             ImGui::Indent();

@@ -41,7 +41,7 @@ class UIManager
         void processConnections();
         void processHelp();
         void processObjectLabels();
-        void processServerControl();
+        void processServerControl(double _CurrentAcceleration);
         void processSubscriptions();
         void processStarSystems();
         void processVerbosity();
