@@ -11,9 +11,11 @@
 #include <Magnum/Math/Matrix3.h>
 #include <Magnum/Primitives/Circle.h>
 #include <Magnum/Shaders/Flat.h>
+#include <Magnum/Shaders/VertexColor.h>
 
 #include "blur_shader_5x1.hpp"
 #include "color_palette.hpp"
+#include "components.hpp"
 #include "main_display_shader.hpp"
 #include "performance_timers.hpp"
 #include "scale_unit.hpp"
@@ -37,6 +39,7 @@ class RenderSystem
         int getScale() const {return Scale_;}
         ScaleUnitE getScaleUnit() const {return ScaleUnit_;}
 
+        void buildGalaxyMesh();
         void renderScale();
         void renderScene();
         void setRenderResFactor(const double _f) {RenderResFactorTarget_ = _f; this->updateRenderResFactor();}
@@ -45,6 +48,10 @@ class RenderSystem
         void setWindowSize(const double _x, const double _y);
 
     private:
+
+        static constexpr double TEXTURE_DECIMALS_MAX = std::log10(TEXTURE_SIZE_MAX);
+        static constexpr int GALAXY_ZOOM_DECIMALS_MAX = int(7.225-TEXTURE_DECIMALS_MAX);
+        static constexpr double GALAXY_ZOOM_MAX = ZoomComponent::CAMERA_ZOOM_DEFAULT * std::pow(10.0, GALAXY_ZOOM_DECIMALS_MAX);
 
         void blurSceneSSAA();
         void updateRenderResFactor();
@@ -58,11 +65,15 @@ class RenderSystem
         int WindowSizeX_{1024};
         int WindowSizeY_{768};
 
+        bool IsSetup{false};
+
+        GL::Mesh MeshGalaxy_{NoCreate};
         std::vector<GL::Mesh> CircleShapes_;
         GL::Mesh ScaleLineShapeH_{NoCreate};
         GL::Mesh ScaleLineShapeV_{NoCreate};
         Matrix3 ProjectionScene_;
         Matrix3 ProjectionWindow_;
+        Shaders::VertexColor2D ShaderGalaxy_{NoCreate};
         Shaders::Flat2D Shader_{NoCreate};
 
         ColorPalette TemperaturePalette_;

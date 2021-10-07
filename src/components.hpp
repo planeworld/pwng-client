@@ -92,8 +92,10 @@ struct VelocityComponent
 
 struct ZoomComponent
 {
-    double z{1.0e-20}; // Zoom
-    double t{1.0e-20}; // Zoom target
+    static constexpr double CAMERA_ZOOM_DEFAULT = 1.0e-20;
+
+    double z{CAMERA_ZOOM_DEFAULT}; // Zoom
+    double t{CAMERA_ZOOM_DEFAULT}; // Zoom target
     double i{0.0};     // Zoom increment
     int    c{0};       // Zoom counter
     int    s{10};      // Zoom speed, steps (frames) to target

@@ -20,6 +20,31 @@ RenderSystem::RenderSystem(entt::registry& _Reg, PerformanceTimers& _Timers) :
     TemperaturePalette_(_Reg, 256, {0.95, 0.58, 0.26}, {0.47, 0.56, 1.0})
 {}
 
+void RenderSystem::buildGalaxyMesh()
+{
+    GL::Buffer Buffer{};
+
+    MeshGalaxy_ = GL::Mesh{};
+    std::vector<float> Pos;
+
+    Reg_.view<SystemPositionComponent, RadiusComponent, StarDataComponent>().each(
+        [&](auto _e, const auto& _p, const auto& _r, const auto& _s)
+    {
+        Pos.push_back(_p.x);
+        Pos.push_back(_p.y);
+
+        auto Pal = TemperaturePalette_.getColorClip((_s.Temperature-2000.0)/45000.0);
+        for (auto i=0u; i<3u; ++i) Pos.push_back(Pal[i]);
+    });
+
+    Buffer.setData(Pos, GL::BufferUsage::StaticDraw);
+    MeshGalaxy_.setCount(Pos.size()/5)
+               .setPrimitive(GL::MeshPrimitive::Points)
+               .addVertexBuffer(std::move(Buffer), 0, Shaders::VertexColor2D::Position{}, Shaders::VertexColor2D::Color3{});
+
+    IsSetup = true;
+}
+
 void RenderSystem::renderScale()
 {
     auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
@@ -127,6 +152,8 @@ void RenderSystem::renderScene()
     // appropriatly
     Timers_.ViewportTest.start();
 
+    if (Zoom.z > GALAXY_ZOOM_MAX)
+    {
     Reg_.clear<InsideViewportTag>();
 
     const double ScreenX = WindowSizeX_;
@@ -165,10 +192,35 @@ void RenderSystem::renderScene()
                 Reg_.emplace<InsideViewportTag>(_e);
             }
         });
+    }
     Timers_.ViewportTest.stop();
     Timers_.ViewportTestAvg.addValue(Timers_.ViewportTest.elapsed());
 
     Timers_.Render.start();
+
+    if (IsSetup && Zoom.z < GALAXY_ZOOM_MAX)
+    {
+        auto x = CamPosSys.x-HookPosSys.x;
+        auto y = CamPosSys.y-HookPosSys.y;
+        x += CamPos.x;
+        y += CamPos.y;
+        if (HookPos != nullptr)
+        {
+            x-=HookPos->x;
+            y-=HookPos->y;
+        }
+
+        glPointSize(4.0);
+        ShaderGalaxy_.setTransformationProjectionMatrix(
+            ProjectionScene_ *
+            Matrix3::translation(Vector2(x*Zoom.z, y*Zoom.z)) *
+            Matrix3::scaling(Vector2(Zoom.z, Zoom.z))
+        );
+
+        ShaderGalaxy_.draw(MeshGalaxy_);
+    }
+    else
+    {
     Reg_.view<SystemPositionComponent, RadiusComponent, InsideViewportTag>().each(
         [&](auto _e, const auto& _p, const auto& _r)
     {
@@ -227,102 +279,104 @@ void RenderSystem::renderScene()
             Shader_.draw(CircleShapes_[1]);
         else
             Shader_.draw(CircleShapes_[2]);
-    });
+    }
+    );
+    }
+    // Reg_.view<TireComponent, PositionComponent>().each(
+        // [&](auto _e, const auto& _t, const auto& _p)
+    // {
+    //     auto x = _p.x;
+    //     auto y = _p.y;
 
-    Reg_.view<TireComponent, PositionComponent>().each(
-        [&](auto _e, const auto& _t, const auto& _p)
-    {
-        auto x = _p.x;
-        auto y = _p.y;
+    //     x += CamPosSys.x - HookPosSys.x;
+    //     y += CamPosSys.y - HookPosSys.y;
 
-        x += CamPosSys.x - HookPosSys.x;
-        y += CamPosSys.y - HookPosSys.y;
+    //     x += CamPos.x;
+    //     y += CamPos.y;
 
-        x += CamPos.x;
-        y += CamPos.y;
+    //     if (HookPos != nullptr)
+    //     {
+    //         x -= HookPos->x;
+    //         y -= HookPos->y;
+    //     }
 
-        if (HookPos != nullptr)
-        {
-            x -= HookPos->x;
-            y -= HookPos->y;
-        }
+    //     x *= Zoom.z;
+    //     y *= Zoom.z;
 
-        x *= Zoom.z;
-        y *= Zoom.z;
+    //     auto r = _t.RimR;
+    //     r *= Zoom.z;
+    //     double RenderScale = 1.0;
+    //     if (RenderResFactor_ < 1.0) RenderScale = 1.0/RenderResFactor_;
+    //     if (r < RenderScale)
+    //     {
+    //         r=RenderScale;
+    //     }
 
-        auto r = _t.RimR;
-        r *= Zoom.z;
-        double RenderScale = 1.0;
-        if (RenderResFactor_ < 1.0) RenderScale = 1.0/RenderResFactor_;
-        if (r < RenderScale)
-        {
-            r=RenderScale;
-        }
+    //     Shader_.setTransformationProjectionMatrix(
+    //         ProjectionScene_ *
+    //         Matrix3::translation(Vector2(x, y)) *
+    //         Matrix3::scaling(Vector2(r, r))
+    //     );
 
-        Shader_.setTransformationProjectionMatrix(
-            ProjectionScene_ *
-            Matrix3::translation(Vector2(x, y)) *
-            Matrix3::scaling(Vector2(r, r))
-        );
+    //     Shader_.setColor({1.0, 1.0, 1.0});
+    //     if (r < 10)
+    //         Shader_.draw(CircleShapes_[0]);
+    //     else if (r < 300)
+    //         Shader_.draw(CircleShapes_[1]);
+    //     else
+    //         Shader_.draw(CircleShapes_[2]);
 
-        Shader_.setColor({1.0, 1.0, 1.0});
-        if (r < 10)
-            Shader_.draw(CircleShapes_[0]);
-        else if (r < 300)
-            Shader_.draw(CircleShapes_[1]);
-        else
-            Shader_.draw(CircleShapes_[2]);
+    //     std::array<Vector2, TireComponent::SEGMENTS> VertsTire;
+    //     for (auto i=0u; i<TireComponent::SEGMENTS; ++i)
+    //     {
+    //         auto x = _t.RubberX[i];
+    //         auto y = _t.RubberY[i];
 
-        std::array<Vector2, TireComponent::SEGMENTS> VertsTire;
-        for (auto i=0u; i<TireComponent::SEGMENTS; ++i)
-        {
-            auto x = _t.RubberX[i];
-            auto y = _t.RubberY[i];
+    //         x += CamPosSys.x - HookPosSys.x;
+    //         y += CamPosSys.y - HookPosSys.y;
 
-            x += CamPosSys.x - HookPosSys.x;
-            y += CamPosSys.y - HookPosSys.y;
+    //         x += CamPos.x;
+    //         y += CamPos.y;
 
-            x += CamPos.x;
-            y += CamPos.y;
+    //         if (HookPos != nullptr)
+    //         {
+    //             x -= HookPos->x;
+    //             y -= HookPos->y;
+    //         }
 
-            if (HookPos != nullptr)
-            {
-                x -= HookPos->x;
-                y -= HookPos->y;
-            }
+    //         x *= Zoom.z;
+    //         y *= Zoom.z;
 
-            x *= Zoom.z;
-            y *= Zoom.z;
+    //         auto r = 1.0;
+    //         r *= Zoom.z;
+    //         double RenderScale = 1.0;
+    //         if (RenderResFactor_ < 1.0) RenderScale = 1.0/RenderResFactor_;
+    //         if (r < RenderScale)
+    //         {
+    //             r=RenderScale;
+    //         }
+    //         VertsTire[i] = {float(x), float(y)};
+    //     }
 
-            auto r = 1.0;
-            r *= Zoom.z;
-            double RenderScale = 1.0;
-            if (RenderResFactor_ < 1.0) RenderScale = 1.0/RenderResFactor_;
-            if (r < RenderScale)
-            {
-                r=RenderScale;
-            }
-            VertsTire[i] = {float(x), float(y)};
-        }
+    //     GL::Mesh Mesh;
+    //     GL::Buffer Buffer;
+    //     Buffer.setData(VertsTire, GL::BufferUsage::DynamicDraw);
+    //     Mesh.setCount(TireComponent::SEGMENTS)
+    //         .setPrimitive(GL::MeshPrimitive::LineLoop)
+    //         .addVertexBuffer(std::move(Buffer), 0, Shaders::VertexColor2D::Position{});
 
-        GL::Mesh Mesh;
-        GL::Buffer Buffer;
-        Buffer.setData(VertsTire, GL::BufferUsage::DynamicDraw);
-        Mesh.setCount(TireComponent::SEGMENTS)
-            .setPrimitive(GL::MeshPrimitive::LineLoop)
-            .addVertexBuffer(std::move(Buffer), 0, Shaders::VertexColor2D::Position{});
+    //     Shader_.setTransformationProjectionMatrix(
+    //         ProjectionScene_ *
+    //         Matrix3::translation(Vector2(0.0, 0.0)) *
+    //         Matrix3::scaling(Vector2(1.0, 1.0))
+    //     );
 
-        Shader_.setTransformationProjectionMatrix(
-            ProjectionScene_ *
-            Matrix3::translation(Vector2(0.0, 0.0)) *
-            Matrix3::scaling(Vector2(1.0, 1.0))
-        );
+    //     Magnum::GL::Renderer::setLineWidth(RenderScale*2.0);
+    //     Shader_.draw(Mesh);
+    //     Magnum::GL::Renderer::setLineWidth(1.0f);
 
-        Magnum::GL::Renderer::setLineWidth(RenderScale*2.0);
-        Shader_.draw(Mesh);
-        Magnum::GL::Renderer::setLineWidth(1.0f);
-
-    });
+    // }
+    // );
 
     this->blurSceneSSAA();
 
@@ -380,6 +434,7 @@ void RenderSystem::setupGraphics()
         TextureSizeMax_ = TextureSizeMax;
     }
 
+    ShaderGalaxy_ = Shaders::VertexColor2D{};
     Shader_ = Shaders::Flat2D{};
     CircleShapes_.push_back(MeshTools::compile(Primitives::circle2DSolid(10)));
     CircleShapes_.push_back(MeshTools::compile(Primitives::circle2DSolid(100)));
@@ -441,6 +496,8 @@ void RenderSystem::setupGraphics()
     MeshBlur5x1_ = GL::Mesh{};
     MeshBlur5x1_.setCount(6)
                 .setPrimitive(GL::MeshPrimitive::Triangles);
+
+    GL::Renderer::setScissor({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}});
 }
 
 void RenderSystem::setWindowSize(const double _x, const double _y)

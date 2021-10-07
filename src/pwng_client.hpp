@@ -46,6 +46,8 @@ class PwngClient : public Magnum::Platform::Application
         PerformanceTimers Timers_;
         SimTimer SimTime_;
 
+        bool IsGalaxyTransmitted_{false};
+
         //--- Graphics ---//
         std::unordered_map<std::uint32_t, entt::entity> Id2EntityMap_;
 
