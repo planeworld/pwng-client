@@ -3,6 +3,8 @@
 
 #include <atomic>
 #include <cassert>
+#include <chrono>
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -42,7 +44,11 @@ class MessageHandler
         
         void report(const std::string& _Source, const std::string& _Message, const ReportLevelType _Level = ERROR)
         {
+            auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+            std::stringstream Message;
             std::string L;
+
             switch (_Level)
             {
                 case ERROR:
@@ -65,7 +71,6 @@ class MessageHandler
             }
             if (_Level <= Level_)
             {
-                std::stringstream Message;
                 if (IsColored_)
                 {
                     if (_Level == 0)
@@ -77,6 +82,8 @@ class MessageHandler
                         Message << "\033[33m";
                     }
                 }
+                Message << std::put_time(std::localtime(&t), "%Y-%m-%d %X") << "   ";
+
                 if (SourceMap_.count(_Source) == 1)
                 {
                     Message << L << "[ " << SourceMap_[_Source] << " ] " <<  _Message;

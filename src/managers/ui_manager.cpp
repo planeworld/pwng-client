@@ -140,7 +140,7 @@ void UIManager::displayScaleAndTime(const int _Scale, const ScaleUnitE _ScaleUni
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2,
                                    ImGui::GetIO().DisplaySize.y - 40), ImGuiCond_Always, ImVec2(0.5f,0.5f));
     ImGui::Begin("Time", &CloseButton, WindowFlags);
-    ImGui::Text("Time: %dy %dd %dh %dm %ds",
+    ImGui::Text("Time: %dy %3.1dd %2.1dh %2.1dm %2.1fs",
                 _SimTime.getYears(),
                 _SimTime.getDaysFraction(),
                 _SimTime.getHoursFraction(),
@@ -189,29 +189,35 @@ void UIManager::processClientControl()
 {
     auto& Json = Reg_.ctx<JsonManager>();
 
-    if (ImGui::Button("Subscribe Galaxy Data"))
-    {
-        Json.createRequest("sub_galaxy_data").finalise();
-        QueueOut_->enqueue(Json.getString());
-    }
     if (ImGui::Button("Subscribe: All"))
     {
-        Json.createRequest("sub_all").finalise();
+        Json.createRequest("sub_galaxy_data_evt").finalise();
+        QueueOut_->enqueue(Json.getString());
+        Json.createRequest("sub_dynamic_data_evt").finalise();
+        QueueOut_->enqueue(Json.getString());
+        Json.createRequest("sub_perf_stats_s1").finalise();
+        QueueOut_->enqueue(Json.getString());
+        Json.createRequest("sub_sim_stats_s01").finalise();
+        QueueOut_->enqueue(Json.getString());
+    }
+    if (ImGui::Button("Subscribe: Galaxy Data"))
+    {
+        Json.createRequest("sub_galaxy_data_evt").finalise();
         QueueOut_->enqueue(Json.getString());
     }
     if (ImGui::Button("Subscribe: Dynamic Data"))
     {
-        Json.createRequest("sub_dynamic_data").finalise();
+        Json.createRequest("sub_dynamic_data_evt").finalise();
         QueueOut_->enqueue(Json.getString());
     }
     if (ImGui::Button("Subscribe: Performance Stats"))
     {
-        Json.createRequest("sub_perf_stats").finalise();
+        Json.createRequest("sub_perf_stats_s1").finalise();
         QueueOut_->enqueue(Json.getString());
     }
     if (ImGui::Button("Subscribe: Simulation Stats"))
     {
-        Json.createRequest("sub_sim_stats").finalise();
+        Json.createRequest("sub_sim_stats_s01").finalise();
         QueueOut_->enqueue(Json.getString());
     }
 }
@@ -253,7 +259,7 @@ void UIManager::processObjectLabels()
     ImGui::Unindent();
 }
 
-void UIManager::processServerControl()
+void UIManager::processServerControl(double _CurrentAcceleration)
 {
     auto& Json = Reg_.ctx<JsonManager>();
 
@@ -271,6 +277,22 @@ void UIManager::processServerControl()
         Json.createRequest(Msg).finalise();
         QueueOut_->enqueue(Json.getString());
     }
+    static int Acceleration{0};
+    Acceleration = static_cast<int>(std::log10(_CurrentAcceleration));
+    ImGui::Text("Accelerate Simulation");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100);
+    if (ImGui::SliderInt("##acc", &Acceleration, -1, 6, ""))
+    {
+        Json.createRequest("cmd_accelerate_simulation")
+            .beginArray("params")
+            .addValue(std::pow(10.0, Acceleration))
+            .endArray()
+            .finalise();
+        QueueOut_->enqueue(std::string(Json.getString()));
+    }
+    ImGui::SameLine();
+    ImGui::Text("x%.1f", _CurrentAcceleration);
     if (ImGui::Button("Start Simulation"))
     {
         Json.createRequest("cmd_start_simulation").finalise();
@@ -323,7 +345,8 @@ void UIManager::processSubscriptions()
         NamesSubs_.assign(NamesSubsSet_.cbegin(), NamesSubsSet_.cend());
         NamesUnsubs_.assign(NamesUnsubsSet_.cbegin(), NamesUnsubsSet_.cend());
 
-        Json.createRequest("un"+Name)
+        Name.replace(0, 3, "uns");
+        Json.createRequest(Name)
             .finalise();
         QueueOut_->enqueue(Json.getString());
 
@@ -396,19 +419,20 @@ void UIManager::processVerbosity()
 
 void UIManager::initSubscriptions()
 {
-    NamesSubsSet_.insert("sub_dynamic_data");
-    NamesSubsSet_.insert("sub_perf_stats_f0");
-    NamesSubsSet_.insert("sub_perf_stats_f0.1");
-    NamesSubsSet_.insert("sub_perf_stats_f0.5");
-    NamesSubsSet_.insert("sub_perf_stats_f1");
-    NamesSubsSet_.insert("sub_perf_stats_f5");
-    NamesSubsSet_.insert("sub_perf_stats_f10");
-    NamesSubsSet_.insert("sub_sim_stats_f0");
-    NamesSubsSet_.insert("sub_sim_stats_f0.1");
-    NamesSubsSet_.insert("sub_sim_stats_f0.5");
-    NamesSubsSet_.insert("sub_sim_stats_f1");
-    NamesSubsSet_.insert("sub_sim_stats_f5");
-    NamesSubsSet_.insert("sub_sim_stats_f10");
+    NamesSubsSet_.insert("sub_galaxy_data_evt");
+    NamesSubsSet_.insert("sub_dynamic_data_evt");
+    NamesSubsSet_.insert("sub_perf_stats_evt");
+    NamesSubsSet_.insert("sub_perf_stats_s01");
+    NamesSubsSet_.insert("sub_perf_stats_s05");
+    NamesSubsSet_.insert("sub_perf_stats_s1");
+    NamesSubsSet_.insert("sub_perf_stats_s5");
+    NamesSubsSet_.insert("sub_perf_stats_s10");
+    NamesSubsSet_.insert("sub_sim_stats_evt");
+    NamesSubsSet_.insert("sub_sim_stats_s01");
+    NamesSubsSet_.insert("sub_sim_stats_s05");
+    NamesSubsSet_.insert("sub_sim_stats_s1");
+    NamesSubsSet_.insert("sub_sim_stats_s5");
+    NamesSubsSet_.insert("sub_sim_stats_s10");
 
     NamesSubs_.assign(NamesSubsSet_.cbegin(), NamesSubsSet_.cend());
 }

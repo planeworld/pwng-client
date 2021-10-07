@@ -13,6 +13,7 @@ set(HEADERS
   color_palette.hpp
   components.hpp
   message_handler.hpp
+  network_message.hpp
   performance_timers.hpp
   pwng_client.hpp
   scale_unit.hpp

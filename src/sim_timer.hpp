@@ -14,14 +14,16 @@ class SimTimer
         std::uint32_t getDaysFraction() const;
         std::uint32_t getHoursFraction() const;
         std::uint32_t getMinutesFraction() const;
-        std::uint32_t getSecondsFraction() const;
+        double        getSecondsFraction() const;
         double        getSeconds() const;
+        double        getAcceleration() const;
         std::string   toStamp() const;
         
         bool isActive() const;
 
         void fromStamp(const std::string& _s);
         void inc(const double& _Seconds);
+        void setAcceleration(double _a);
         void start();
         void stop();
         void toggle();
@@ -29,6 +31,7 @@ class SimTimer
     private:
         
         bool            Active_{false};
+        double          Acceleration_{1.0};
         double          Seconds_{0.0};
         std::uint32_t   Years_{0u};
 };
@@ -38,11 +41,11 @@ inline std::uint32_t SimTimer::getYears() const
     return Years_;
 }
 
-inline std::uint32_t SimTimer::getSecondsFraction() const
+inline double SimTimer::getSecondsFraction() const
 {
     constexpr double M_PER_S = 1.0/60.0;
     constexpr double S_PER_M = 60.0;
-    return static_cast<uint32_t>(((Seconds_ * M_PER_S) - std::floor(Seconds_ * M_PER_S)) * S_PER_M);
+    return ((Seconds_ * M_PER_S) - std::floor(Seconds_ * M_PER_S)) * S_PER_M;
 }
 
 inline std::uint32_t SimTimer::getMinutesFraction() const
@@ -71,6 +74,11 @@ inline double SimTimer::getSeconds() const
     return Seconds_;
 }
 
+inline double SimTimer::getAcceleration() const
+{
+    return Acceleration_;
+}
+
 inline std::string SimTimer::toStamp() const
 {
     return std::to_string(Years_) + ":" + std::to_string(Seconds_);
@@ -79,6 +87,11 @@ inline std::string SimTimer::toStamp() const
 inline bool SimTimer::isActive() const
 {
     return Active_;
+}
+
+inline void SimTimer::setAcceleration(double _a)
+{
+    Acceleration_ = _a;
 }
 
 #endif // SIM_TIMER_HPP

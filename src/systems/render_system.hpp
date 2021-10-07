@@ -11,9 +11,11 @@
 #include <Magnum/Math/Matrix3.h>
 #include <Magnum/Primitives/Circle.h>
 #include <Magnum/Shaders/Flat.h>
+#include <Magnum/Shaders/VertexColor.h>
 
 #include "blur_shader_5x1.hpp"
 #include "color_palette.hpp"
+#include "components.hpp"
 #include "main_display_shader.hpp"
 #include "performance_timers.hpp"
 #include "scale_unit.hpp"
@@ -31,12 +33,13 @@ class RenderSystem
         // likely not used
         static constexpr int TEXTURE_SIZE_MAX = 16384;
 
-        explicit RenderSystem(entt::registry& _Reg);
+        explicit RenderSystem(entt::registry& _Reg, PerformanceTimers& _Timers);
 
         entt::entity getCamera() const {return Camera_;}
         int getScale() const {return Scale_;}
         ScaleUnitE getScaleUnit() const {return ScaleUnit_;}
 
+        void buildGalaxyMesh();
         void renderScale();
         void renderScene();
         void setRenderResFactor(const double _f) {RenderResFactorTarget_ = _f; this->updateRenderResFactor();}
@@ -46,10 +49,15 @@ class RenderSystem
 
     private:
 
+        static constexpr double TEXTURE_DECIMALS_MAX = std::log10(TEXTURE_SIZE_MAX);
+        static constexpr int GALAXY_ZOOM_DECIMALS_MAX = int(7.225-TEXTURE_DECIMALS_MAX);
+        static constexpr double GALAXY_ZOOM_MAX = ZoomComponent::CAMERA_ZOOM_DEFAULT * std::pow(10.0, GALAXY_ZOOM_DECIMALS_MAX);
+
         void blurSceneSSAA();
         void updateRenderResFactor();
 
         entt::registry& Reg_;
+        PerformanceTimers& Timers_;
 
         double RenderResFactor_{2.0};
         double RenderResFactorTarget_{2.0};
@@ -57,11 +65,15 @@ class RenderSystem
         int WindowSizeX_{1024};
         int WindowSizeY_{768};
 
+        bool IsSetup{false};
+
+        GL::Mesh MeshGalaxy_{NoCreate};
         std::vector<GL::Mesh> CircleShapes_;
         GL::Mesh ScaleLineShapeH_{NoCreate};
         GL::Mesh ScaleLineShapeV_{NoCreate};
         Matrix3 ProjectionScene_;
         Matrix3 ProjectionWindow_;
+        Shaders::VertexColor2D ShaderGalaxy_{NoCreate};
         Shaders::Flat2D Shader_{NoCreate};
 
         ColorPalette TemperaturePalette_;

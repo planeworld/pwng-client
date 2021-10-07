@@ -29,7 +29,7 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::GlfwApplication{ar
     Reg_.set<MessageHandler>();
     Reg_.set<NameSystem>(Reg_);
     Reg_.set<NetworkManager>(Reg_);
-    Reg_.set<RenderSystem>(Reg_);
+    Reg_.set<RenderSystem>(Reg_, Timers_);
     Reg_.set<UIManager>(Reg_, ImGUI_, &InputQueue_, &OutputQueue_);
 
     auto& Messages = Reg_.ctx<MessageHandler>();
@@ -154,6 +154,7 @@ void PwngClient::getObjectsFromQueue()
     Timers_.Queue.start();
     auto& Messages = Reg_.ctx<MessageHandler>();
     auto& Names = Reg_.ctx<NameSystem>();
+    auto& Renderer = Reg_.ctx<RenderSystem>();
     auto& UI = Reg_.ctx<UIManager>();
 
     bool NewHooks = false;
@@ -283,6 +284,7 @@ void PwngClient::getObjectsFromQueue()
             else if (j["method"] == "sim_stats")
             {
                 SimTime_.fromStamp(j["params"]["ts"].GetString());
+                SimTime_.setAcceleration(j["params"]["ts_f"].GetDouble());
             }
             else if (j["method"] == "tire_data")
             {
@@ -331,6 +333,7 @@ void PwngClient::getObjectsFromQueue()
                 NewHooks = true;
                 UI.finishSystemsTransfer();
                 DBLK(Messages.report("prg", "Receiving systems successful", MessageHandler::DEBUG_L1);)
+                Renderer.buildGalaxyMesh();
             }
         }
         if (NewHooks)
@@ -456,11 +459,11 @@ void PwngClient::updateUI()
 
             ImGui::TextColored(ImVec4(1,1,0,1), "Server control");
             ImGui::Indent();
-                UI.processServerControl();
+                UI.processServerControl(SimTime_.getAcceleration());
             ImGui::Unindent();
             ImGui::TextColored(ImVec4(1,1,0,1), "Display");
             ImGui::Indent();
-                auto& Zoom = Reg_.get<ZoomComponent>(Camera);
+                // auto& Zoom = Reg_.get<ZoomComponent>(Camera);
                 // ImGui::SliderFloat("Stars: Minimum Display Size", &StarsDisplaySizeMin_, 0.1, 20.0);
                 // ImGui::SliderFloat("Stars: Display Scale Factor", &StarsDisplayScaleFactor_, 1.0, std::clamp(1.0e-7/Zoom.z, 5.0, 1.0e11));
                 // if (StarsDisplayScaleFactor_ >  1.0e-7/Zoom.z) StarsDisplayScaleFactor_= 1.0e-7/Zoom.z;
