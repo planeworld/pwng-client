@@ -115,7 +115,6 @@ void RenderSystem::renderScale()
 
 void RenderSystem::renderScene()
 {
-
     //----------------------------------
     // Adjust viewports and projections
     //----------------------------------
@@ -128,160 +127,41 @@ void RenderSystem::renderScene()
                          .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}})
                          .bind();
 
-    auto& HookPosSys = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
-    auto* HookPos    = Reg_.try_get<PositionComponent>(Reg_.get<HookComponent>(Camera_).e);
-    auto& CamPosSys = Reg_.get<SystemPositionComponent>(Camera_);
-    auto& CamPos = Reg_.get<PositionComponent>(Camera_);
-    auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
-
-    if (Zoom.c < Zoom.s && Zoom.t != Zoom.z)
-    {
-        Zoom.z += Zoom.i;
-        Zoom.c++;
-    }
-    else
-    {
-        Zoom.c = 0;
-        Zoom.t = Zoom.z;
-    }
-    if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
-    else if (Zoom.z > 1000.0) Zoom.z = 1000.0;
-
-    // Remove all "inside" tags from objects
-    // After that, test all objects for camera viewport and tag
-    // appropriatly
-    Timers_.ViewportTest.start();
-
-    if (Zoom.z > GALAXY_ZOOM_MAX)
-    {
-    Reg_.clear<InsideViewportTag>();
-
-    const double ScreenX = WindowSizeX_;
-    const double ScreenY = WindowSizeY_;
-
-    Reg_.view<SystemPositionComponent>().each(
-        [&](auto _e, const auto& _p_s)
-        {
-            auto x = _p_s.x;
-            auto y = _p_s.y;
-
-            x += CamPosSys.x - HookPosSys.x;
-            y += CamPosSys.y - HookPosSys.y;
-
-            x += CamPos.x;
-            y += CamPos.y;
-
-            auto* p = Reg_.try_get<PositionComponent>(_e);
-            if (p != nullptr)
-            {
-                x += p->x;
-                y += p->y;
-            }
-            if (HookPos != nullptr)
-            {
-                x -= HookPos->x;
-                y -= HookPos->y;
-            }
-
-            x *= Zoom.z;
-            y *= Zoom.z;
-
-            if ((x+0.5*ScreenX > 0) && (x <= 0.5*ScreenX) &&
-                (y+0.5*ScreenY > 0) && (y <= 0.5*ScreenY))
-            {
-                Reg_.emplace<InsideViewportTag>(_e);
-            }
-        });
-    }
-    Timers_.ViewportTest.stop();
-    Timers_.ViewportTestAvg.addValue(Timers_.ViewportTest.elapsed());
+    this->clampZoom();
+    this->testViewportGalaxy();
 
     Timers_.Render.start();
 
-    if (IsSetup && Zoom.z < GALAXY_ZOOM_MAX)
+    this->renderGalaxy();
+    this->subSampleGalaxy();
+    this->blurSceneSSAA();
+
+    GL::Renderer::setScissor({{0, 0}, {WindowSizeX_, WindowSizeY_}});
+
+    GL::defaultFramebuffer.clearColor(Color4(0.0f, 0.0f, 0.0f, 1.0f));
+    GL::defaultFramebuffer.setViewport({{}, {WindowSizeX_, WindowSizeY_}});
+    GL::defaultFramebuffer.bind();
+
+    ShaderMainDisplay_.bindTexture(*TexMainDisplayFront_)
+                      .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_,
+                                   (RenderResFactor_*WindowSizeY_)/TextureSizeMax_)
+                      .draw(MeshMainDisplay_);
+
+    for (auto i=0u; i<5u; ++i)
     {
-        auto x = CamPosSys.x-HookPosSys.x;
-        auto y = CamPosSys.y-HookPosSys.y;
-        x += CamPos.x;
-        y += CamPos.y;
-        if (HookPos != nullptr)
-        {
-            x-=HookPos->x;
-            y-=HookPos->y;
-        }
+        GL::defaultFramebuffer.setViewport({{i*int(WindowSizeX_*0.2), 0}, {(i+1)*int(WindowSizeX_*0.2), int(WindowSizeY_*0.2)}});
 
-        glPointSize(4.0);
-        ShaderGalaxy_.setTransformationProjectionMatrix(
-            ProjectionScene_ *
-            Matrix3::translation(Vector2(x*Zoom.z, y*Zoom.z)) *
-            Matrix3::scaling(Vector2(Zoom.z, Zoom.z))
-        );
-
-        ShaderGalaxy_.draw(MeshGalaxy_);
+        ShaderMainDisplay_.bindTexture(*TexsGalaxySubFront_[i])
+                          .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_*GALAXY_SUB_LEVEL[i]*4,
+                                       (RenderResFactor_*WindowSizeY_)/TextureSizeMax_*GALAXY_SUB_LEVEL[i]*4)
+                          .draw(MeshMainDisplay_);
     }
-    else
-    {
-    Reg_.view<SystemPositionComponent, RadiusComponent, InsideViewportTag>().each(
-        [&](auto _e, const auto& _p, const auto& _r)
-    {
-        auto x = _p.x;
-        auto y = _p.y;
 
-        x += CamPosSys.x - HookPosSys.x;
-        y += CamPosSys.y - HookPosSys.y;
+    GL::defaultFramebuffer.setViewport({{}, {WindowSizeX_, WindowSizeY_}});
 
-        x += CamPos.x;
-        y += CamPos.y;
+    Timers_.Render.stop();
+    Timers_.RenderAvg.addValue(Timers_.Render.elapsed());
 
-        if (HookPos != nullptr)
-        {
-            x -= HookPos->x;
-            y -= HookPos->y;
-        }
-
-        auto* p = Reg_.try_get<PositionComponent>(_e);
-        if (p != nullptr)
-        {
-            x += p->x;
-            y += p->y;
-        }
-
-        x *= Zoom.z;
-        y *= Zoom.z;
-
-        auto r = _r.r;
-        r *= Zoom.z * StarsDisplayScaleFactor_;
-        double RenderScale = 1.0;
-        if (RenderResFactor_ < 1.0) RenderScale = 1.0/RenderResFactor_;
-        if (r < StarsDisplaySizeMin_*RenderScale)
-        {
-            r=StarsDisplaySizeMin_*RenderScale;
-        }
-
-        Shader_.setTransformationProjectionMatrix(
-            ProjectionScene_ *
-            Matrix3::translation(Vector2(x, y)) *
-            Matrix3::scaling(Vector2(r, r))
-        );
-
-        auto* s = Reg_.try_get<StarDataComponent>(_e);
-        if (s != nullptr)
-        {
-            Shader_.setColor(TemperaturePalette_.getColorClip((s->Temperature-2000.0)/45000.0));
-        }
-        else
-        {
-            Shader_.setColor({0.0, 0.0, 1.0});
-        }
-        if (r < 10)
-            Shader_.draw(CircleShapes_[0]);
-        else if (r < 300)
-            Shader_.draw(CircleShapes_[1]);
-        else
-            Shader_.draw(CircleShapes_[2]);
-    }
-    );
-    }
     // Reg_.view<TireComponent, PositionComponent>().each(
         // [&](auto _e, const auto& _t, const auto& _p)
     // {
@@ -378,22 +258,6 @@ void RenderSystem::renderScene()
     // }
     // );
 
-    this->blurSceneSSAA();
-
-    GL::Renderer::setScissor({{0, 0}, {WindowSizeX_, WindowSizeY_}});
-
-    GL::defaultFramebuffer.clearColor(Color4(0.0f, 0.0f, 0.0f, 1.0f));
-    GL::defaultFramebuffer.setViewport({{}, {WindowSizeX_, WindowSizeY_}});
-    GL::defaultFramebuffer.bind();
-
-    ShaderMainDisplay_.bindTexture(*TexMainDisplayFront_)
-                      .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_,
-                                   (RenderResFactor_*WindowSizeY_)/TextureSizeMax_)
-                      .draw(MeshMainDisplay_);
-
-
-    Timers_.Render.stop();
-    Timers_.RenderAvg.addValue(Timers_.Render.elapsed());
 }
 
 void RenderSystem::setupCamera()
@@ -497,6 +361,36 @@ void RenderSystem::setupGraphics()
     MeshBlur5x1_.setCount(6)
                 .setPrimitive(GL::MeshPrimitive::Triangles);
 
+    // Setup FBOs and textures for galaxy subsampling
+    for (auto i=0u; i<5; ++i)
+    {
+        FBOsGalaxySub0_.push_back(GL::Framebuffer{{{0, 0},{TextureSizeMax_ >> 2, TextureSizeMax_ >> 2}}});
+        FBOsGalaxySub1_.push_back(GL::Framebuffer{{{0, 0},{TextureSizeMax_ >> 2, TextureSizeMax_ >> 2}}});
+        TexsGalaxySub0_.push_back(GL::Texture2D{});
+        TexsGalaxySub1_.push_back(GL::Texture2D{});
+        TexsGalaxySub0_[i].setMagnificationFilter(GL::SamplerFilter::Linear)
+                          .setMinificationFilter(GL::SamplerFilter::Linear, GL::SamplerMipmap::Linear)
+                          .setWrapping(GL::SamplerWrapping::ClampToBorder)
+                          .setMaxAnisotropy(GL::Sampler::maxMaxAnisotropy())
+                          .setStorage(1, GL::TextureFormat::RGBA8, {TextureSizeMax_ >> 2, TextureSizeMax_ >> 2});
+        TexsGalaxySub1_[i].setMagnificationFilter(GL::SamplerFilter::Linear)
+                          .setMinificationFilter(GL::SamplerFilter::Linear, GL::SamplerMipmap::Linear)
+                          .setWrapping(GL::SamplerWrapping::ClampToBorder)
+                          .setMaxAnisotropy(GL::Sampler::maxMaxAnisotropy())
+                          .setStorage(1, GL::TextureFormat::RGBA8, {TextureSizeMax_ >> 2, TextureSizeMax_ >> 2});
+        FBOsGalaxySub0_[i].attachTexture(GL::Framebuffer::ColorAttachment{0}, TexsGalaxySub0_[i], 0)
+                          .clearColor(0, Color4(0.0f, 0.0f, 0.5f, 1.0f));
+        FBOsGalaxySub1_[i].attachTexture(GL::Framebuffer::ColorAttachment{0}, TexsGalaxySub1_[i], 0)
+                          .clearColor(0, Color4(0.0f, 0.0f, 0.5f, 1.0f));
+    }
+    for (auto i=0u; i<5; ++i)
+    {
+        FBOsGalaxySubFront_.push_back(&(FBOsGalaxySub0_[i]));
+        FBOsGalaxySubBack_.push_back(&(FBOsGalaxySub1_[i]));
+        TexsGalaxySubFront_.push_back(&(TexsGalaxySub0_[i]));
+        TexsGalaxySubBack_.push_back(&(TexsGalaxySub1_[i]));
+    }
+
     GL::Renderer::setScissor({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}});
 }
 
@@ -511,33 +405,234 @@ void RenderSystem::setWindowSize(const double _x, const double _y)
     ProjectionWindow_= Magnum::Matrix3::projection(Magnum::Vector2(_x, _y));
 }
 
-void RenderSystem::blurSceneSSAA()
+void RenderSystem::blur5x5(GL::Framebuffer* _FboFront, GL::Framebuffer* _FboBack,
+                           GL::Texture2D* _TexFront, GL::Texture2D* _TexBack,
+                           int _n, double _f)
 {
-    auto n = int(RenderResFactor_+0.5)/2;
-    for (auto i=0; i<n; ++i)
+    // Blur framebuffer 5x5 Gaussian kernel with _n iterations on subsampling factor _f
+
+    for (auto i=0; i<_n; ++i)
     {
-        std::swap(FBOMainDisplayFront_, FBOMainDisplayBack_);
-        std::swap(TexMainDisplayFront_, TexMainDisplayBack_);
+        std::swap(_FboFront, _FboBack);
+        std::swap(_TexFront, _TexBack);
 
-        FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
-                            .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}})
-                            .bind();
+        _FboFront->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+                  .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_) * _f, int(WindowSizeY_*RenderResFactor_) * _f}})
+                  .bind();
 
-        ShaderBlur5x1_.bindTexture(*TexMainDisplayBack_)
+        ShaderBlur5x1_.bindTexture(*_TexBack)
                       .setHorizontal(true)
                       .draw(MeshBlur5x1_);
 
-        std::swap(FBOMainDisplayFront_, FBOMainDisplayBack_);
-        std::swap(TexMainDisplayFront_, TexMainDisplayBack_);
+        std::swap(_FboFront, _FboBack);
+        std::swap(_TexFront, _TexBack);
 
-        FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
-                            .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}})
-                            .bind();
+        _FboFront->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+                  .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_) * _f, int(WindowSizeY_*RenderResFactor_) * _f}})
+                  .bind();
 
-        ShaderBlur5x1_.bindTexture(*TexMainDisplayBack_)
+        ShaderBlur5x1_.bindTexture(*_TexBack)
                       .setHorizontal(false)
                       .draw(MeshBlur5x1_);
     }
+
+}
+
+void RenderSystem::blurSceneSSAA()
+{
+    this->blur5x5(FBOMainDisplayFront_, FBOMainDisplayBack_,
+                  TexMainDisplayFront_, TexMainDisplayBack_,
+                  int(RenderResFactor_+0.5)/2, 1.0);
+}
+
+void RenderSystem::clampZoom()
+{
+    auto& HookPosSys = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
+    auto* HookPos    = Reg_.try_get<PositionComponent>(Reg_.get<HookComponent>(Camera_).e);
+    auto& CamPosSys = Reg_.get<SystemPositionComponent>(Camera_);
+    auto& CamPos = Reg_.get<PositionComponent>(Camera_);
+    auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
+
+    if (Zoom.c < Zoom.s && Zoom.t != Zoom.z)
+    {
+        Zoom.z += Zoom.i;
+        Zoom.c++;
+    }
+    else
+    {
+        Zoom.c = 0;
+        Zoom.t = Zoom.z;
+    }
+    if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
+    else if (Zoom.z > 1000.0) Zoom.z = 1000.0;
+}
+
+void RenderSystem::renderGalaxy()
+{
+    auto& HookPosSys = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
+    auto* HookPos    = Reg_.try_get<PositionComponent>(Reg_.get<HookComponent>(Camera_).e);
+    auto& CamPosSys = Reg_.get<SystemPositionComponent>(Camera_);
+    auto& CamPos = Reg_.get<PositionComponent>(Camera_);
+    auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
+
+    if (IsSetup && Zoom.z < GALAXY_ZOOM_MAX)
+    {
+        auto x = CamPosSys.x-HookPosSys.x;
+        auto y = CamPosSys.y-HookPosSys.y;
+        x += CamPos.x;
+        y += CamPos.y;
+        if (HookPos != nullptr)
+        {
+            x-=HookPos->x;
+            y-=HookPos->y;
+        }
+
+        glPointSize(RenderResFactor_*1.25);
+        ShaderGalaxy_.setTransformationProjectionMatrix(
+            ProjectionScene_ *
+            Matrix3::translation(Vector2(x*Zoom.z, y*Zoom.z)) *
+            Matrix3::scaling(Vector2(Zoom.z, Zoom.z))
+        );
+
+        ShaderGalaxy_.draw(MeshGalaxy_);
+    }
+    else
+    {
+        Reg_.view<SystemPositionComponent, RadiusComponent, InsideViewportTag>().each(
+            [&](auto _e, const auto& _p, const auto& _r)
+        {
+            auto x = _p.x;
+            auto y = _p.y;
+
+            x += CamPosSys.x - HookPosSys.x;
+            y += CamPosSys.y - HookPosSys.y;
+
+            x += CamPos.x;
+            y += CamPos.y;
+
+            if (HookPos != nullptr)
+            {
+                x -= HookPos->x;
+                y -= HookPos->y;
+            }
+
+            auto* p = Reg_.try_get<PositionComponent>(_e);
+            if (p != nullptr)
+            {
+                x += p->x;
+                y += p->y;
+            }
+
+            x *= Zoom.z;
+            y *= Zoom.z;
+
+            auto r = _r.r;
+            r *= Zoom.z * StarsDisplayScaleFactor_;
+            double RenderScale = 1.0;
+            if (RenderResFactor_ < 1.0) RenderScale = 1.0/RenderResFactor_;
+            if (r < StarsDisplaySizeMin_*RenderScale)
+            {
+                r=StarsDisplaySizeMin_*RenderScale;
+            }
+
+            Shader_.setTransformationProjectionMatrix(
+                ProjectionScene_ *
+                Matrix3::translation(Vector2(x, y)) *
+                Matrix3::scaling(Vector2(r, r))
+            );
+
+            auto* s = Reg_.try_get<StarDataComponent>(_e);
+            if (s != nullptr)
+            {
+                Shader_.setColor(TemperaturePalette_.getColorClip((s->Temperature-2000.0)/45000.0));
+            }
+            else
+            {
+                Shader_.setColor({0.0, 0.0, 1.0});
+            }
+            if (r < 10)
+                Shader_.draw(CircleShapes_[0]);
+            else if (r < 300)
+                Shader_.draw(CircleShapes_[1]);
+            else
+                Shader_.draw(CircleShapes_[2]);
+        }
+        );
+    }
+}
+
+void RenderSystem::subSampleGalaxy()
+{
+    for (auto i=0u; i<5u; ++i)
+    {
+        FBOsGalaxySubFront_[i]->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
+                        .setViewport({{},{int(WindowSizeX_*RenderResFactor_ * GALAXY_SUB_LEVEL[i]),
+                                          int(WindowSizeY_*RenderResFactor_ * GALAXY_SUB_LEVEL[i])}})
+                        .bind();
+
+        this->renderGalaxy();
+        this->blur5x5(FBOsGalaxySubFront_[i], FBOsGalaxySubBack_[i], TexsGalaxySubFront_[i], TexsGalaxySubBack_[i], 5, GALAXY_SUB_LEVEL[i]);
+    }
+}
+
+void RenderSystem::testViewportGalaxy()
+{
+    // Remove all "inside" tags from objects
+    // After that, test all objects for camera viewport and tag
+    // appropriatly
+
+    Timers_.ViewportTest.start();
+
+    auto& HookPosSys = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
+    auto* HookPos    = Reg_.try_get<PositionComponent>(Reg_.get<HookComponent>(Camera_).e);
+    auto& CamPosSys = Reg_.get<SystemPositionComponent>(Camera_);
+    auto& CamPos = Reg_.get<PositionComponent>(Camera_);
+    auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
+
+    if (Zoom.z > GALAXY_ZOOM_MAX)
+    {
+        Reg_.clear<InsideViewportTag>();
+
+        const double ScreenX = WindowSizeX_;
+        const double ScreenY = WindowSizeY_;
+
+        Reg_.view<SystemPositionComponent>().each(
+            [&](auto _e, const auto& _p_s)
+            {
+                auto x = _p_s.x;
+                auto y = _p_s.y;
+
+                x += CamPosSys.x - HookPosSys.x;
+                y += CamPosSys.y - HookPosSys.y;
+
+                x += CamPos.x;
+                y += CamPos.y;
+
+                auto* p = Reg_.try_get<PositionComponent>(_e);
+                if (p != nullptr)
+                {
+                    x += p->x;
+                    y += p->y;
+                }
+                if (HookPos != nullptr)
+                {
+                    x -= HookPos->x;
+                    y -= HookPos->y;
+                }
+
+                x *= Zoom.z;
+                y *= Zoom.z;
+
+                if ((x+0.5*ScreenX > 0) && (x <= 0.5*ScreenX) &&
+                    (y+0.5*ScreenY > 0) && (y <= 0.5*ScreenY))
+                {
+                    Reg_.emplace<InsideViewportTag>(_e);
+                }
+            });
+    }
+
+    Timers_.ViewportTest.stop();
+    Timers_.ViewportTestAvg.addValue(Timers_.ViewportTest.elapsed());
 }
 
 void RenderSystem::updateRenderResFactor()

@@ -1,6 +1,7 @@
 #ifndef RENDER_SYSTEM_HPP
 #define RENDER_SYSTEM_HPP
 
+#include <array>
 #include <vector>
 
 #include <entt/entity/registry.hpp>
@@ -52,8 +53,21 @@ class RenderSystem
         static constexpr double TEXTURE_DECIMALS_MAX = std::log10(TEXTURE_SIZE_MAX);
         static constexpr int GALAXY_ZOOM_DECIMALS_MAX = int(7.225-TEXTURE_DECIMALS_MAX);
         static constexpr double GALAXY_ZOOM_MAX = ZoomComponent::CAMERA_ZOOM_DEFAULT * std::pow(10.0, GALAXY_ZOOM_DECIMALS_MAX);
+        static constexpr std::array<double,5> GALAXY_SUB_LEVEL
+            {1.0/8.0,
+             1.0/16.0,
+             1.0/32.0,
+             1.0/64.0,
+             1.0/128.0};
 
+        void blur5x5(GL::Framebuffer* _FboFront, GL::Framebuffer* _FboBack,
+                     GL::Texture2D* _TexFront, GL::Texture2D* _TexBack,
+                     int _n, double _f);
         void blurSceneSSAA();
+        void clampZoom();
+        void renderGalaxy();
+        void subSampleGalaxy();
+        void testViewportGalaxy();
         void updateRenderResFactor();
 
         entt::registry& Reg_;
@@ -82,6 +96,14 @@ class RenderSystem
         ScaleUnitE ScaleUnit_{ScaleUnitE::LY};
 
         //--- Framebuffer related ---//
+        std::vector<GL::Framebuffer> FBOsGalaxySub0_;
+        std::vector<GL::Framebuffer> FBOsGalaxySub1_;
+        std::vector<GL::Framebuffer*> FBOsGalaxySubFront_;
+        std::vector<GL::Framebuffer*> FBOsGalaxySubBack_;
+        std::vector<GL::Texture2D> TexsGalaxySub0_;
+        std::vector<GL::Texture2D> TexsGalaxySub1_;
+        std::vector<GL::Texture2D*> TexsGalaxySubFront_;
+        std::vector<GL::Texture2D*> TexsGalaxySubBack_;
         GL::Framebuffer* FBOMainDisplayFront_{nullptr};
         GL::Framebuffer* FBOMainDisplayBack_{nullptr};
         GL::Framebuffer FBOMainDisplay0_{NoCreate};
