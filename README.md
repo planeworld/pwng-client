@@ -9,7 +9,7 @@ See **[pwng-server](https://github.com/planeworld/pwng-server)** for detailed do
 
 Since the default desktop client shows a lot of the underlying server simulation, all information can be found there: [pwng-server](https://github.com/planeworld/pwng-server). A teaser can be seen in the following Figure 1:
 
-![Very early galaxy representation](screenshots/galaxy_2021-04-09.png?raw=true)
+![Very early galaxy representation](screenshots/galaxy_2021-12-16.png?raw=true)
 
 *Figure 1: Galaxy representation using Magnum.Graphics and EnTT. The galaxy is generated procedurally by incoporating distributions of stars and their features from information publicy available*
 
