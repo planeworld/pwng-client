@@ -20,6 +20,7 @@
 #include "main_display_shader.hpp"
 #include "performance_timers.hpp"
 #include "scale_unit.hpp"
+#include "textures_weighted_avg_shader.hpp"
 
 // using namespace Magnum;
 //
@@ -53,19 +54,23 @@ class RenderSystem
         static constexpr double TEXTURE_DECIMALS_MAX = std::log10(TEXTURE_SIZE_MAX);
         static constexpr int GALAXY_ZOOM_DECIMALS_MAX = int(7.225-TEXTURE_DECIMALS_MAX);
         static constexpr double GALAXY_ZOOM_MAX = ZoomComponent::CAMERA_ZOOM_DEFAULT * std::pow(10.0, GALAXY_ZOOM_DECIMALS_MAX);
-        static constexpr std::array<double,5> GALAXY_SUB_LEVEL
-            {1.0/8.0,
-             1.0/16.0,
+        static constexpr std::size_t GALAXY_SUB_N{3};
+        static constexpr std::array<double, GALAXY_SUB_N> GALAXY_SUB_LEVEL
+            {1.0/16.0,
+             // 1.0/16.0,
              1.0/32.0,
-             1.0/64.0,
+             // 1.0/64.0,
              1.0/128.0};
+        static constexpr std::array<double, GALAXY_SUB_N-1> GALAXY_SUB_WEIGHTS
+            {0.75,
+             0.85};
 
         void blur5x5(GL::Framebuffer* _FboFront, GL::Framebuffer* _FboBack,
                      GL::Texture2D* _TexFront, GL::Texture2D* _TexBack,
                      int _n, double _f);
         void blurSceneSSAA();
         void clampZoom();
-        void renderGalaxy();
+        void renderGalaxy(double _Scale);
         void subSampleGalaxy();
         void testViewportGalaxy();
         void updateRenderResFactor();
@@ -110,12 +115,14 @@ class RenderSystem
         GL::Framebuffer FBOMainDisplay1_{NoCreate};
         GL::Mesh MeshMainDisplay_{NoCreate};
         GL::Mesh MeshBlur5x1_{NoCreate};
+        GL::Mesh MeshWeightedAvg_{NoCreate};
         GL::Texture2D* TexMainDisplayFront_{nullptr};
         GL::Texture2D* TexMainDisplayBack_{nullptr};
         GL::Texture2D TexMainDisplay0_{NoCreate};
         GL::Texture2D TexMainDisplay1_{NoCreate};
         BlurShader5x1 ShaderBlur5x1_{NoCreate};
         MainDisplayShader ShaderMainDisplay_{NoCreate};
+        TexturesWeightedAvgShader ShaderWeightedAvg_{NoCreate};
 
         // --- Graphics - Camera ---//
         entt::entity Camera_;

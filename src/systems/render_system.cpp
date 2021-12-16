@@ -132,24 +132,38 @@ void RenderSystem::renderScene()
 
     Timers_.Render.start();
 
-    this->renderGalaxy();
+    this->renderGalaxy(1.0);
     this->subSampleGalaxy();
     this->blurSceneSSAA();
 
+    std::swap(FBOMainDisplayFront_, FBOMainDisplayBack_);
+    std::swap(TexMainDisplayFront_, TexMainDisplayBack_);
+
+    FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+                         .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}})
+                         .bind();
+    ShaderWeightedAvg_.bindTextures(*TexMainDisplayBack_, *TexsGalaxySubFront_[0])
+                      .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_,
+                                   (RenderResFactor_*WindowSizeY_)/TextureSizeMax_)
+                      .setSigma(0.25)
+                      .setWeight(0.125)
+                      .draw(MeshWeightedAvg_);
+
     GL::Renderer::setScissor({{0, 0}, {WindowSizeX_, WindowSizeY_}});
 
-    GL::defaultFramebuffer.clearColor(Color4(0.0f, 0.0f, 0.0f, 1.0f));
-    GL::defaultFramebuffer.setViewport({{}, {WindowSizeX_, WindowSizeY_}});
-    GL::defaultFramebuffer.bind();
+    GL::defaultFramebuffer.clearColor(Color4(0.0f, 0.0f, 0.0f, 1.0f))
+                          .setViewport({{}, {WindowSizeX_, WindowSizeY_}})
+                          .bind();
 
     ShaderMainDisplay_.bindTexture(*TexMainDisplayFront_)
                       .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_,
                                    (RenderResFactor_*WindowSizeY_)/TextureSizeMax_)
                       .draw(MeshMainDisplay_);
 
-    for (auto i=0u; i<5u; ++i)
+    for (auto i=0u; i<GALAXY_SUB_N; ++i)
     {
-        GL::defaultFramebuffer.setViewport({{i*int(WindowSizeX_*0.2), 0}, {(i+1)*int(WindowSizeX_*0.2), int(WindowSizeY_*0.2)}});
+        GL::defaultFramebuffer.setViewport({{i*int(WindowSizeX_*1.0/GALAXY_SUB_N), 0},
+                                           {(i+1)*int(WindowSizeX_*1.0/GALAXY_SUB_N), int(WindowSizeY_*1.0/GALAXY_SUB_N)}});
 
         ShaderMainDisplay_.bindTexture(*TexsGalaxySubFront_[i])
                           .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_*GALAXY_SUB_LEVEL[i]*4,
@@ -358,11 +372,14 @@ void RenderSystem::setupGraphics()
     MeshMainDisplay_.setCount(3)
                     .setPrimitive(GL::MeshPrimitive::Triangles);
     MeshBlur5x1_ = GL::Mesh{};
-    MeshBlur5x1_.setCount(6)
+    MeshBlur5x1_.setCount(3)
                 .setPrimitive(GL::MeshPrimitive::Triangles);
+    MeshWeightedAvg_ = GL::Mesh{};
+    MeshWeightedAvg_.setCount(3)
+                    .setPrimitive(GL::MeshPrimitive::Triangles);
 
     // Setup FBOs and textures for galaxy subsampling
-    for (auto i=0u; i<5; ++i)
+    for (auto i=0u; i<GALAXY_SUB_N; ++i)
     {
         FBOsGalaxySub0_.push_back(GL::Framebuffer{{{0, 0},{TextureSizeMax_ >> 2, TextureSizeMax_ >> 2}}});
         FBOsGalaxySub1_.push_back(GL::Framebuffer{{{0, 0},{TextureSizeMax_ >> 2, TextureSizeMax_ >> 2}}});
@@ -383,13 +400,17 @@ void RenderSystem::setupGraphics()
         FBOsGalaxySub1_[i].attachTexture(GL::Framebuffer::ColorAttachment{0}, TexsGalaxySub1_[i], 0)
                           .clearColor(0, Color4(0.0f, 0.0f, 0.5f, 1.0f));
     }
-    for (auto i=0u; i<5; ++i)
+    for (auto i=0u; i<GALAXY_SUB_N; ++i)
     {
         FBOsGalaxySubFront_.push_back(&(FBOsGalaxySub0_[i]));
         FBOsGalaxySubBack_.push_back(&(FBOsGalaxySub1_[i]));
         TexsGalaxySubFront_.push_back(&(TexsGalaxySub0_[i]));
         TexsGalaxySubBack_.push_back(&(TexsGalaxySub1_[i]));
     }
+
+    ShaderWeightedAvg_ = TexturesWeightedAvgShader{};
+    ShaderWeightedAvg_.bindTextures(*TexsGalaxySubFront_[0], *TexsGalaxySubFront_[1])
+                      .setSigma(GALAXY_SUB_LEVEL[1]);
 
     GL::Renderer::setScissor({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}});
 }
@@ -467,7 +488,7 @@ void RenderSystem::clampZoom()
     else if (Zoom.z > 1000.0) Zoom.z = 1000.0;
 }
 
-void RenderSystem::renderGalaxy()
+void RenderSystem::renderGalaxy(double _Scale)
 {
     auto& HookPosSys = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
     auto* HookPos    = Reg_.try_get<PositionComponent>(Reg_.get<HookComponent>(Camera_).e);
@@ -534,6 +555,7 @@ void RenderSystem::renderGalaxy()
             {
                 r=StarsDisplaySizeMin_*RenderScale;
             }
+            r *= _Scale;
 
             Shader_.setTransformationProjectionMatrix(
                 ProjectionScene_ *
@@ -563,16 +585,28 @@ void RenderSystem::renderGalaxy()
 
 void RenderSystem::subSampleGalaxy()
 {
-    for (auto i=0u; i<5u; ++i)
+    for (auto i=0u; i<GALAXY_SUB_N; ++i)
     {
         FBOsGalaxySubFront_[i]->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
                         .setViewport({{},{int(WindowSizeX_*RenderResFactor_ * GALAXY_SUB_LEVEL[i]),
                                           int(WindowSizeY_*RenderResFactor_ * GALAXY_SUB_LEVEL[i])}})
                         .bind();
 
-        this->renderGalaxy();
-        this->blur5x5(FBOsGalaxySubFront_[i], FBOsGalaxySubBack_[i], TexsGalaxySubFront_[i], TexsGalaxySubBack_[i], 5, GALAXY_SUB_LEVEL[i]);
+        this->renderGalaxy(1.0/GALAXY_SUB_LEVEL[i]);
+        this->blur5x5(FBOsGalaxySubFront_[i], FBOsGalaxySubBack_[i], TexsGalaxySubFront_[i], TexsGalaxySubBack_[i], 3, GALAXY_SUB_LEVEL[i]);
     }
+
+    FBOsGalaxySubFront_[0]->clearColor(0, Color4(0.0f, 0.3f, 0.0f, 1.0f))
+                           .setViewport({{},{int(WindowSizeX_*RenderResFactor_ * GALAXY_SUB_LEVEL[0]),
+                                             int(WindowSizeY_*RenderResFactor_ * GALAXY_SUB_LEVEL[0])}})
+                           .bind();
+
+    ShaderWeightedAvg_.bindTextures(*TexsGalaxySubFront_[1], *TexsGalaxySubFront_[2])
+                      .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_*GALAXY_SUB_LEVEL[1]*4,
+                                   (RenderResFactor_*WindowSizeY_)/TextureSizeMax_*GALAXY_SUB_LEVEL[1]*4)
+                      .setSigma(GALAXY_SUB_LEVEL[2]/GALAXY_SUB_LEVEL[1])
+                      .setWeight(GALAXY_SUB_WEIGHTS[1])
+                      .draw(MeshWeightedAvg_);
 }
 
 void RenderSystem::testViewportGalaxy()

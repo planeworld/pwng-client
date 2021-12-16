@@ -26,7 +26,7 @@ class BlurShader5x1 : public GL::AbstractShaderProgram
             GL::Shader Vert{GL::Version::GL330, GL::Shader::Type::Vertex};
             GL::Shader Frag{GL::Version::GL330, GL::Shader::Type::Fragment};
 
-            Vert.addFile(Path_+"image_unit_shader.vert");
+            Vert.addFile(Path_+"texture_base_unit_shader.vert");
             Frag.addFile(Path_+"blur_shader_5x1.frag");
 
             CORRADE_INTERNAL_ASSERT_OUTPUT(GL::Shader::compile({Vert, Frag}));
