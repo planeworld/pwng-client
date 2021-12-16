@@ -123,7 +123,7 @@ void RenderSystem::renderScene()
     //
     GL::Renderer::setScissor({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}});
 
-    FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+    FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
                          .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}})
                          .bind();
 
@@ -139,7 +139,7 @@ void RenderSystem::renderScene()
     std::swap(FBOMainDisplayFront_, FBOMainDisplayBack_);
     std::swap(TexMainDisplayFront_, TexMainDisplayBack_);
 
-    FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+    FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
                          .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}})
                          .bind();
     ShaderWeightedAvg_.bindTextures(*TexMainDisplayBack_, *TexsGalaxySubFront_[0])
@@ -396,9 +396,9 @@ void RenderSystem::setupGraphics()
                           .setMaxAnisotropy(GL::Sampler::maxMaxAnisotropy())
                           .setStorage(1, GL::TextureFormat::RGBA8, {TextureSizeMax_ >> 2, TextureSizeMax_ >> 2});
         FBOsGalaxySub0_[i].attachTexture(GL::Framebuffer::ColorAttachment{0}, TexsGalaxySub0_[i], 0)
-                          .clearColor(0, Color4(0.0f, 0.0f, 0.5f, 1.0f));
+                          .clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f));
         FBOsGalaxySub1_[i].attachTexture(GL::Framebuffer::ColorAttachment{0}, TexsGalaxySub1_[i], 0)
-                          .clearColor(0, Color4(0.0f, 0.0f, 0.5f, 1.0f));
+                          .clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f));
     }
     for (auto i=0u; i<GALAXY_SUB_N; ++i)
     {
@@ -437,7 +437,7 @@ void RenderSystem::blur5x5(GL::Framebuffer* _FboFront, GL::Framebuffer* _FboBack
         std::swap(_FboFront, _FboBack);
         std::swap(_TexFront, _TexBack);
 
-        _FboFront->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+        _FboFront->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
                   .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_) * _f, int(WindowSizeY_*RenderResFactor_) * _f}})
                   .bind();
 
@@ -448,7 +448,7 @@ void RenderSystem::blur5x5(GL::Framebuffer* _FboFront, GL::Framebuffer* _FboBack
         std::swap(_FboFront, _FboBack);
         std::swap(_TexFront, _TexBack);
 
-        _FboFront->clearColor(0, Color4(0.0f, 0.0f, 0.1f, 1.0f))
+        _FboFront->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
                   .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_) * _f, int(WindowSizeY_*RenderResFactor_) * _f}})
                   .bind();
 
@@ -596,7 +596,7 @@ void RenderSystem::subSampleGalaxy()
         this->blur5x5(FBOsGalaxySubFront_[i], FBOsGalaxySubBack_[i], TexsGalaxySubFront_[i], TexsGalaxySubBack_[i], 3, GALAXY_SUB_LEVEL[i]);
     }
 
-    FBOsGalaxySubFront_[0]->clearColor(0, Color4(0.0f, 0.3f, 0.0f, 1.0f))
+    FBOsGalaxySubFront_[0]->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
                            .setViewport({{},{int(WindowSizeX_*RenderResFactor_ * GALAXY_SUB_LEVEL[0]),
                                              int(WindowSizeY_*RenderResFactor_ * GALAXY_SUB_LEVEL[0])}})
                            .bind();
