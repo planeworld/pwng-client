@@ -142,11 +142,11 @@ void RenderSystem::renderScene()
     FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
                          .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}})
                          .bind();
-    ShaderWeightedAvg_.bindTextures(*TexMainDisplayBack_, *TexsGalaxySubFront_[0])
+    ShaderWeightedAvg_.bindTextures(*TexMainDisplayBack_, *TexGalaxyLevelCombinerFront_)
                       .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_,
                                    (RenderResFactor_*WindowSizeY_)/TextureSizeMax_)
-                      .setSigma(0.25)
-                      .setWeight(0.125)
+                      .setSigma(GALAXY_SUB_LEVEL[0]*TextureSizeMax_/(TextureSizeSubMax_*RenderResFactor_))
+                      .setWeight(0.25)
                       .draw(MeshWeightedAvg_);
 
     GL::Renderer::setScissor({{0, 0}, {WindowSizeX_, WindowSizeY_}});
@@ -166,10 +166,17 @@ void RenderSystem::renderScene()
                                            {(i+1)*int(WindowSizeX_*1.0/GALAXY_SUB_N), int(WindowSizeY_*1.0/GALAXY_SUB_N)}});
 
         ShaderMainDisplay_.bindTexture(*TexsGalaxySubFront_[i])
-                          .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_*GALAXY_SUB_LEVEL[i]*4,
-                                       (RenderResFactor_*WindowSizeY_)/TextureSizeMax_*GALAXY_SUB_LEVEL[i]*4)
+                          .setTexScale(double(WindowSizeX_)/TextureSizeSubMax_*GALAXY_SUB_LEVEL[i],
+                                       double(WindowSizeY_)/TextureSizeSubMax_*GALAXY_SUB_LEVEL[i])
                           .draw(MeshMainDisplay_);
     }
+    GL::defaultFramebuffer.setViewport({{0, int(WindowSizeY_*1.0/GALAXY_SUB_N)},
+                                       {int(WindowSizeX_*1.0/GALAXY_SUB_N), 2*int(WindowSizeY_*1.0/GALAXY_SUB_N)}});
+
+    ShaderMainDisplay_.bindTexture(*TexGalaxyLevelCombinerFront_)
+                      .setTexScale(double(WindowSizeX_)/TextureSizeSubMax_*GALAXY_SUB_LEVEL[GALAXY_SUB_N-3],
+                                   double(WindowSizeY_)/TextureSizeSubMax_*GALAXY_SUB_LEVEL[GALAXY_SUB_N-3])
+                      .draw(MeshMainDisplay_);
 
     GL::defaultFramebuffer.setViewport({{}, {WindowSizeX_, WindowSizeY_}});
 
@@ -312,6 +319,12 @@ void RenderSystem::setupGraphics()
         TextureSizeMax_ = TextureSizeMax;
     }
 
+    if (TextureSizeMax < TextureSizeSubMax_)
+    {
+        TextureSizeSubMax_ = TextureSizeMax;
+        Reg_.ctx<MessageHandler>().report("gfx", "Minimum resolution for galaxy rendering not met. Graphics might not be of intended quality", MessageHandler::WARNING);
+    }
+
     ShaderGalaxy_ = Shaders::VertexColor2D{};
     Shader_ = Shaders::Flat2D{};
     CircleShapes_.push_back(MeshTools::compile(Primitives::circle2DSolid(10)));
@@ -330,30 +343,16 @@ void RenderSystem::setupGraphics()
     TemperaturePalette_.buildLuT();
 
     //--- FBOs ---//
-    FBOMainDisplay0_ = GL::Framebuffer{{{0, 0},{TextureSizeMax_, TextureSizeMax_}}};
-    TexMainDisplay0_ = GL::Texture2D{};
+    this->createFBOandTex(&FBOMainDisplay0_, &TexMainDisplay0_, TextureSizeMax_, TextureSizeMax_);
+    this->createFBOandTex(&FBOMainDisplay1_, &TexMainDisplay1_, TextureSizeMax_, TextureSizeMax_);
 
-    TexMainDisplay0_.setMagnificationFilter(GL::SamplerFilter::Linear)
-                    .setMinificationFilter(GL::SamplerFilter::Linear, GL::SamplerMipmap::Linear)
-                    .setWrapping(GL::SamplerWrapping::ClampToBorder)
-                    .setMaxAnisotropy(GL::Sampler::maxMaxAnisotropy())
-                    .setStorage(1, GL::TextureFormat::RGBA8, {TextureSizeMax_, TextureSizeMax_});
+    FBOMainDisplayBack_ = &FBOMainDisplay0_;
+    FBOMainDisplayFront_ = &FBOMainDisplay1_;
 
-    FBOMainDisplay0_.attachTexture(GL::Framebuffer::ColorAttachment{0}, TexMainDisplay0_, 0)
-                    .clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f));
+    TexMainDisplayBack_ = &TexMainDisplay0_;
+    TexMainDisplayFront_ = &TexMainDisplay1_;
 
-    FBOMainDisplay1_ = GL::Framebuffer{{{0, 0},{TextureSizeMax_, TextureSizeMax_}}};
-    TexMainDisplay1_ = GL::Texture2D{};
-
-    TexMainDisplay1_.setMagnificationFilter(GL::SamplerFilter::Linear)
-                    .setMinificationFilter(GL::SamplerFilter::Linear, GL::SamplerMipmap::Linear)
-                    .setWrapping(GL::SamplerWrapping::ClampToBorder)
-                    .setMaxAnisotropy(GL::Sampler::maxMaxAnisotropy())
-                    .setStorage(1, GL::TextureFormat::RGBA8, {TextureSizeMax_, TextureSizeMax_});
-
-    FBOMainDisplay1_.attachTexture(GL::Framebuffer::ColorAttachment{0}, TexMainDisplay1_, 0)
-                    .clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f));
-
+    //--- Shaders ---//
     ShaderMainDisplay_ = MainDisplayShader{};
     ShaderMainDisplay_.bindTexture(TexMainDisplay1_);
 
@@ -361,11 +360,6 @@ void RenderSystem::setupGraphics()
     ShaderBlur5x1_.setHorizontal(true)
                   .bindTexture(TexMainDisplay0_);
 
-    FBOMainDisplayBack_ = &FBOMainDisplay0_;
-    FBOMainDisplayFront_ = &FBOMainDisplay1_;
-
-    TexMainDisplayBack_ = &TexMainDisplay0_;
-    TexMainDisplayFront_ = &TexMainDisplay1_;
 
     //--- Meshes ---//
     MeshMainDisplay_ = GL::Mesh{};
@@ -379,26 +373,18 @@ void RenderSystem::setupGraphics()
                     .setPrimitive(GL::MeshPrimitive::Triangles);
 
     // Setup FBOs and textures for galaxy subsampling
+    for(auto i=0u; i<GALAXY_SUB_N; ++i)
+    {
+        FBOsGalaxySub0_.push_back(GL::Framebuffer{NoCreate});
+        TexsGalaxySub0_.push_back(GL::Texture2D{NoCreate});
+        FBOsGalaxySub1_.push_back(GL::Framebuffer{NoCreate});
+        TexsGalaxySub1_.push_back(GL::Texture2D{NoCreate});
+    }
     for (auto i=0u; i<GALAXY_SUB_N; ++i)
     {
-        FBOsGalaxySub0_.push_back(GL::Framebuffer{{{0, 0},{TextureSizeMax_ >> 2, TextureSizeMax_ >> 2}}});
-        FBOsGalaxySub1_.push_back(GL::Framebuffer{{{0, 0},{TextureSizeMax_ >> 2, TextureSizeMax_ >> 2}}});
-        TexsGalaxySub0_.push_back(GL::Texture2D{});
-        TexsGalaxySub1_.push_back(GL::Texture2D{});
-        TexsGalaxySub0_[i].setMagnificationFilter(GL::SamplerFilter::Linear)
-                          .setMinificationFilter(GL::SamplerFilter::Linear, GL::SamplerMipmap::Linear)
-                          .setWrapping(GL::SamplerWrapping::ClampToBorder)
-                          .setMaxAnisotropy(GL::Sampler::maxMaxAnisotropy())
-                          .setStorage(1, GL::TextureFormat::RGBA8, {TextureSizeMax_ >> 2, TextureSizeMax_ >> 2});
-        TexsGalaxySub1_[i].setMagnificationFilter(GL::SamplerFilter::Linear)
-                          .setMinificationFilter(GL::SamplerFilter::Linear, GL::SamplerMipmap::Linear)
-                          .setWrapping(GL::SamplerWrapping::ClampToBorder)
-                          .setMaxAnisotropy(GL::Sampler::maxMaxAnisotropy())
-                          .setStorage(1, GL::TextureFormat::RGBA8, {TextureSizeMax_ >> 2, TextureSizeMax_ >> 2});
-        FBOsGalaxySub0_[i].attachTexture(GL::Framebuffer::ColorAttachment{0}, TexsGalaxySub0_[i], 0)
-                          .clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f));
-        FBOsGalaxySub1_[i].attachTexture(GL::Framebuffer::ColorAttachment{0}, TexsGalaxySub1_[i], 0)
-                          .clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f));
+        this->createFBOandTex(&FBOsGalaxySub0_[i], &TexsGalaxySub0_[i], TextureSizeSubMax_, TextureSizeSubMax_);
+        this->createFBOandTex(&FBOsGalaxySub1_[i], &TexsGalaxySub1_[i], TextureSizeSubMax_, TextureSizeSubMax_);
+
     }
     for (auto i=0u; i<GALAXY_SUB_N; ++i)
     {
@@ -407,6 +393,15 @@ void RenderSystem::setupGraphics()
         TexsGalaxySubFront_.push_back(&(TexsGalaxySub0_[i]));
         TexsGalaxySubBack_.push_back(&(TexsGalaxySub1_[i]));
     }
+
+    // Setup FBOs and textures for galaxy combiner
+    this->createFBOandTex(&FBOGalaxyLevelCombiner0_, &TexGalaxyLevelCombiner0_, TextureSizeSubMax_, TextureSizeSubMax_);
+    this->createFBOandTex(&FBOGalaxyLevelCombiner1_, &TexGalaxyLevelCombiner1_, TextureSizeSubMax_, TextureSizeSubMax_);
+
+    FBOGalaxyLevelCombinerFront_ = &FBOGalaxyLevelCombiner0_;
+    FBOGalaxyLevelCombinerBack_ = &FBOGalaxyLevelCombiner1_;
+    TexGalaxyLevelCombinerFront_ = &TexGalaxyLevelCombiner0_;
+    TexGalaxyLevelCombinerBack_ = &TexGalaxyLevelCombiner1_;
 
     ShaderWeightedAvg_ = TexturesWeightedAvgShader{};
     ShaderWeightedAvg_.bindTextures(*TexsGalaxySubFront_[0], *TexsGalaxySubFront_[1])
@@ -428,9 +423,11 @@ void RenderSystem::setWindowSize(const double _x, const double _y)
 
 void RenderSystem::blur5x5(GL::Framebuffer* _FboFront, GL::Framebuffer* _FboBack,
                            GL::Texture2D* _TexFront, GL::Texture2D* _TexBack,
+                           int _Sx, int _Sy,
                            int _n, double _f)
 {
     // Blur framebuffer 5x5 Gaussian kernel with _n iterations on subsampling factor _f
+    // Viewport size is given by _Sx/_Sy times _f
 
     for (auto i=0; i<_n; ++i)
     {
@@ -438,7 +435,7 @@ void RenderSystem::blur5x5(GL::Framebuffer* _FboFront, GL::Framebuffer* _FboBack
         std::swap(_TexFront, _TexBack);
 
         _FboFront->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
-                  .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_) * _f, int(WindowSizeY_*RenderResFactor_) * _f}})
+                  .setViewport({{0, 0}, {_f * _Sx, _f * _Sy}})
                   .bind();
 
         ShaderBlur5x1_.bindTexture(*_TexBack)
@@ -449,7 +446,7 @@ void RenderSystem::blur5x5(GL::Framebuffer* _FboFront, GL::Framebuffer* _FboBack
         std::swap(_TexFront, _TexBack);
 
         _FboFront->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
-                  .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_) * _f, int(WindowSizeY_*RenderResFactor_) * _f}})
+                  .setViewport({{0, 0}, {_f * _Sx, _f * _Sy}})
                   .bind();
 
         ShaderBlur5x1_.bindTexture(*_TexBack)
@@ -463,6 +460,7 @@ void RenderSystem::blurSceneSSAA()
 {
     this->blur5x5(FBOMainDisplayFront_, FBOMainDisplayBack_,
                   TexMainDisplayFront_, TexMainDisplayBack_,
+                  WindowSizeX_*RenderResFactor_, WindowSizeY_*RenderResFactor_,
                   int(RenderResFactor_+0.5)/2, 1.0);
 }
 
@@ -486,6 +484,22 @@ void RenderSystem::clampZoom()
     }
     if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
     else if (Zoom.z > 1000.0) Zoom.z = 1000.0;
+}
+
+void RenderSystem::createFBOandTex(GL::Framebuffer* const _Fbo,
+                                   GL::Texture2D* const _Tex,
+                                   int _SizeX, int _SizeY)
+{
+    *_Tex = GL::Texture2D{};
+    _Tex->setMagnificationFilter(GL::SamplerFilter::Linear)
+         .setMinificationFilter(GL::SamplerFilter::Linear, GL::SamplerMipmap::Linear)
+         .setWrapping(GL::SamplerWrapping::ClampToBorder)
+         .setMaxAnisotropy(GL::Sampler::maxMaxAnisotropy())
+         .setStorage(1, GL::TextureFormat::RGBA8, {_SizeX, _SizeY});
+
+    *_Fbo = GL::Framebuffer{{{0, 0},{_SizeX, _SizeY}}};
+    _Fbo->attachTexture(GL::Framebuffer::ColorAttachment{0}, *_Tex, 0)
+         .clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f));
 }
 
 void RenderSystem::renderGalaxy(double _Scale)
@@ -588,25 +602,41 @@ void RenderSystem::subSampleGalaxy()
     for (auto i=0u; i<GALAXY_SUB_N; ++i)
     {
         FBOsGalaxySubFront_[i]->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
-                        .setViewport({{},{int(WindowSizeX_*RenderResFactor_ * GALAXY_SUB_LEVEL[i]),
-                                          int(WindowSizeY_*RenderResFactor_ * GALAXY_SUB_LEVEL[i])}})
+                        .setViewport({{},{int(WindowSizeX_* GALAXY_SUB_LEVEL[i]),
+                                          int(WindowSizeY_* GALAXY_SUB_LEVEL[i])}})
                         .bind();
 
         this->renderGalaxy(1.0/GALAXY_SUB_LEVEL[i]);
-        this->blur5x5(FBOsGalaxySubFront_[i], FBOsGalaxySubBack_[i], TexsGalaxySubFront_[i], TexsGalaxySubBack_[i], 3, GALAXY_SUB_LEVEL[i]);
+        this->blur5x5(FBOsGalaxySubFront_[i], FBOsGalaxySubBack_[i], TexsGalaxySubFront_[i], TexsGalaxySubBack_[i], WindowSizeX_, WindowSizeY_, 3, GALAXY_SUB_LEVEL[i]);
     }
 
-    FBOsGalaxySubFront_[0]->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
-                           .setViewport({{},{int(WindowSizeX_*RenderResFactor_ * GALAXY_SUB_LEVEL[0]),
-                                             int(WindowSizeY_*RenderResFactor_ * GALAXY_SUB_LEVEL[0])}})
-                           .bind();
+    FBOGalaxyLevelCombinerFront_->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
+                                 .setViewport({{},{int(WindowSizeX_*RenderResFactor_ * GALAXY_SUB_LEVEL[GALAXY_SUB_N-2]),
+                                                   int(WindowSizeY_*RenderResFactor_ * GALAXY_SUB_LEVEL[GALAXY_SUB_N-2])}})
+                                 .bind();
 
-    ShaderWeightedAvg_.bindTextures(*TexsGalaxySubFront_[1], *TexsGalaxySubFront_[2])
-                      .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_*GALAXY_SUB_LEVEL[1]*4,
-                                   (RenderResFactor_*WindowSizeY_)/TextureSizeMax_*GALAXY_SUB_LEVEL[1]*4)
-                      .setSigma(GALAXY_SUB_LEVEL[2]/GALAXY_SUB_LEVEL[1])
-                      .setWeight(GALAXY_SUB_WEIGHTS[1])
+    ShaderWeightedAvg_.bindTextures(*TexsGalaxySubFront_[GALAXY_SUB_N-2], *TexsGalaxySubFront_[GALAXY_SUB_N-1])
+                      .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_*GALAXY_SUB_LEVEL[GALAXY_SUB_N-2]*16,
+                                   (RenderResFactor_*WindowSizeY_)/TextureSizeMax_*GALAXY_SUB_LEVEL[GALAXY_SUB_N-2]*16)
+                      .setSigma(GALAXY_SUB_LEVEL[GALAXY_SUB_N-1]/GALAXY_SUB_LEVEL[GALAXY_SUB_N-2])
+                      .setWeight(GALAXY_SUB_WEIGHTS[GALAXY_SUB_N-2])
                       .draw(MeshWeightedAvg_);
+
+    FBOGalaxyLevelCombinerFront_->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
+                                 .setViewport({{},{int(WindowSizeX_ * GALAXY_SUB_LEVEL[GALAXY_SUB_N-3]),
+                                                   int(WindowSizeY_ * GALAXY_SUB_LEVEL[GALAXY_SUB_N-3])}})
+                                 .bind();
+
+    ShaderWeightedAvg_.bindTextures(*TexsGalaxySubFront_[GALAXY_SUB_N-3], *TexsGalaxySubFront_[GALAXY_SUB_N-2])
+                      .setTexScale(double(WindowSizeX_)/TextureSizeSubMax_*GALAXY_SUB_LEVEL[GALAXY_SUB_N-3],
+                                   double(WindowSizeY_)/TextureSizeSubMax_*GALAXY_SUB_LEVEL[GALAXY_SUB_N-3])
+                      .setSigma(GALAXY_SUB_LEVEL[GALAXY_SUB_N-2]/GALAXY_SUB_LEVEL[GALAXY_SUB_N-3])
+                      .setWeight(GALAXY_SUB_WEIGHTS[GALAXY_SUB_N-3])
+                      .draw(MeshWeightedAvg_);
+    // for (auto i=1u; i<GALAXY_SUB_N-1; ++i)
+    // {
+    //     FBOGalaxyLevelCombinerFront_.clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
+    // }
 }
 
 void RenderSystem::testViewportGalaxy()
