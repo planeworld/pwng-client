@@ -54,7 +54,7 @@ class RenderSystem
         static constexpr double TEXTURE_DECIMALS_MAX = std::log10(TEXTURE_SIZE_MAX);
         static constexpr int GALAXY_ZOOM_DECIMALS_MAX = int(7.225-TEXTURE_DECIMALS_MAX);
         static constexpr double GALAXY_ZOOM_MAX = ZoomComponent::CAMERA_ZOOM_DEFAULT * std::pow(10.0, GALAXY_ZOOM_DECIMALS_MAX);
-        static constexpr std::size_t GALAXY_SUB_N{5};
+        static constexpr int GALAXY_SUB_N{5};
         static constexpr std::array<double, GALAXY_SUB_N> GALAXY_SUB_LEVEL
         {
              1.0/4.0,
@@ -142,8 +142,8 @@ class RenderSystem
         // --- Graphics - Camera ---//
         entt::entity Camera_;
 
-        float StarsDisplaySizeMin_{1.0f};
-        float StarsDisplayScaleFactor_{1.0f};
+        double StarsDisplaySizeMin_{1.0};
+        double StarsDisplayScaleFactor_{1.0};
 
 };
 

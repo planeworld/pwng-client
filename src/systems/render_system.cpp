@@ -160,7 +160,7 @@ void RenderSystem::renderScene()
                                    (RenderResFactor_*WindowSizeY_)/TextureSizeMax_)
                       .draw(MeshMainDisplay_);
 
-    for (auto i=0u; i<GALAXY_SUB_N; ++i)
+    for (auto i=0; i<GALAXY_SUB_N; ++i)
     {
         GL::defaultFramebuffer.setViewport({{i*int(WindowSizeX_*1.0/GALAXY_SUB_N), 0},
                                            {(i+1)*int(WindowSizeX_*1.0/GALAXY_SUB_N), int(WindowSizeY_*1.0/GALAXY_SUB_N)}});
@@ -435,7 +435,7 @@ void RenderSystem::blur5x5(GL::Framebuffer* _FboFront, GL::Framebuffer* _FboBack
         std::swap(_TexFront, _TexBack);
 
         _FboFront->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
-                  .setViewport({{0, 0}, {_f * _Sx, _f * _Sy}})
+                  .setViewport({{0, 0}, {int(_f * _Sx), int(_f * _Sy)}})
                   .bind();
 
         ShaderBlur5x1_.bindTexture(*_TexBack)
@@ -446,7 +446,7 @@ void RenderSystem::blur5x5(GL::Framebuffer* _FboFront, GL::Framebuffer* _FboBack
         std::swap(_TexFront, _TexBack);
 
         _FboFront->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
-                  .setViewport({{0, 0}, {_f * _Sx, _f * _Sy}})
+                  .setViewport({{0, 0}, {int(_f * _Sx), int(_f * _Sy)}})
                   .bind();
 
         ShaderBlur5x1_.bindTexture(*_TexBack)
@@ -466,10 +466,6 @@ void RenderSystem::blurSceneSSAA()
 
 void RenderSystem::clampZoom()
 {
-    auto& HookPosSys = Reg_.get<SystemPositionComponent>(Reg_.get<HookComponent>(Camera_).e);
-    auto* HookPos    = Reg_.try_get<PositionComponent>(Reg_.get<HookComponent>(Camera_).e);
-    auto& CamPosSys = Reg_.get<SystemPositionComponent>(Camera_);
-    auto& CamPos = Reg_.get<PositionComponent>(Camera_);
     auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
 
     if (Zoom.c < Zoom.s && Zoom.t != Zoom.z)
@@ -639,7 +635,7 @@ void RenderSystem::subSampleGalaxy()
     std::swap(FBOGalaxyLevelCombinerFront_, FBOGalaxyLevelCombinerBack_);
     std::swap(TexGalaxyLevelCombinerFront_, TexGalaxyLevelCombinerBack_);
 
-    for (auto i=GALAXY_SUB_N-2; i>0u; --i)
+    for (auto i=GALAXY_SUB_N-2; i>0; --i)
     {
         FBOGalaxyLevelCombinerFront_->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
                                     .setViewport({{},{int(WindowSizeX_ * GALAXY_SUB_LEVEL[i-1]),
