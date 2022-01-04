@@ -91,6 +91,8 @@ class RenderSystem
         int WindowSizeX_{1024};
         int WindowSizeY_{768};
 
+        int GalaxyBlurIterations_{5};
+
         bool IsSetup{false};
 
         GL::Mesh MeshGalaxy_{NoCreate};
@@ -120,6 +122,10 @@ class RenderSystem
         GL::Framebuffer* FBOGalaxyLevelCombinerBack_{nullptr};
         GL::Framebuffer FBOGalaxyLevelCombiner0_{NoCreate};
         GL::Framebuffer FBOGalaxyLevelCombiner1_{NoCreate};
+        GL::Framebuffer* FBOGalaxyTemporalSmoothingFront_{nullptr};
+        GL::Framebuffer* FBOGalaxyTemporalSmoothingBack_{nullptr};
+        GL::Framebuffer FBOGalaxyTemporalSmoothing0_{NoCreate};
+        GL::Framebuffer FBOGalaxyTemporalSmoothing1_{NoCreate};
         GL::Framebuffer* FBOMainDisplayFront_{nullptr};
         GL::Framebuffer* FBOMainDisplayBack_{nullptr};
         GL::Framebuffer FBOMainDisplay0_{NoCreate};
@@ -131,6 +137,10 @@ class RenderSystem
         GL::Texture2D* TexGalaxyLevelCombinerBack_{nullptr};
         GL::Texture2D TexGalaxyLevelCombiner0_{NoCreate};
         GL::Texture2D TexGalaxyLevelCombiner1_{NoCreate};
+        GL::Texture2D* TexGalaxyTemporalSmoothingFront_{nullptr};
+        GL::Texture2D* TexGalaxyTemporalSmoothingBack_{nullptr};
+        GL::Texture2D TexGalaxyTemporalSmoothing0_{NoCreate};
+        GL::Texture2D TexGalaxyTemporalSmoothing1_{NoCreate};
         GL::Texture2D* TexMainDisplayFront_{nullptr};
         GL::Texture2D* TexMainDisplayBack_{nullptr};
         GL::Texture2D TexMainDisplay0_{NoCreate};
