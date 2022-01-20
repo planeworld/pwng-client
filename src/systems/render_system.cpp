@@ -17,7 +17,7 @@ using namespace Magnum;
 RenderSystem::RenderSystem(entt::registry& _Reg, PerformanceTimers& _Timers) :
     Reg_(_Reg),
     Timers_(_Timers),
-    TemperaturePalette_(_Reg, 256, {0.95, 0.58, 0.26}, {0.47, 0.56, 1.0})
+    TemperaturePalette_(_Reg, 256, {1.0, 0.0337, 0.0}, {0.3563, 0.4745, 1.0})
 {}
 
 void RenderSystem::buildGalaxyMesh()
@@ -33,7 +33,7 @@ void RenderSystem::buildGalaxyMesh()
         Pos.push_back(_p.x);
         Pos.push_back(_p.y);
 
-        auto Pal = TemperaturePalette_.getColorClip((_s.Temperature-2000.0)/45000.0);
+        auto Pal = TemperaturePalette_.getColorClip((_s.Temperature)/40000.0);
         for (auto i=0u; i<3u; ++i) Pos.push_back(Pal[i]);
     });
 
@@ -136,7 +136,7 @@ void RenderSystem::renderScene()
     this->subSampleGalaxy();
     this->blurSceneSSAA();
 
-    double Weight = 0.75;
+    double Weight = 0.7;
 
     if (Reg_.get<ZoomComponent>(Camera_).z >= 1.0e-13)
     {
@@ -331,6 +331,7 @@ void RenderSystem::setupGraphics()
         TextureSizeSubMax_ = TextureSizeMax;
         Reg_.ctx<MessageHandler>().report("gfx", "Minimum resolution for galaxy rendering not met. Graphics might not be of intended quality", MessageHandler::WARNING);
     }
+    this->checkGalaxyTextureSizes();
 
     ShaderGalaxy_ = Shaders::VertexColor2D{};
     Shader_ = Shaders::Flat2D{};
@@ -342,11 +343,21 @@ void RenderSystem::setupGraphics()
     ScaleLineShapeV_ = MeshTools::compile(Primitives::line2D({ 1.0, -1.0},
                                                              { 1.0,  1.0}));
 
-    TemperaturePalette_.addSupportPoint(0.03, {1.0, 0.8, 0.21});
-    TemperaturePalette_.addSupportPoint(0.11, {1.0, 0.93, 0.27});
-    TemperaturePalette_.addSupportPoint(0.15, {1.0, 0.97, 0.7});
-    TemperaturePalette_.addSupportPoint(0.19, {0.82, 0.92, 1.0});
-    TemperaturePalette_.addSupportPoint(0.42, {0.4, 0.74, 1.0});
+    TemperaturePalette_.addSupportPoint(0.05, {1.0, 0.2647, 0.0033});
+    TemperaturePalette_.addSupportPoint(0.1, {1.0, 0.6636, 0.3583});
+    TemperaturePalette_.addSupportPoint(0.1125, {1.0, 0.736, 0.4803});
+    TemperaturePalette_.addSupportPoint(0.125, {1.0, 0.7992, 0.6045});
+    TemperaturePalette_.addSupportPoint(0.15, {1.0, 0.919, 0.8473});
+    TemperaturePalette_.addSupportPoint(0.1625, {1.0, 0.9436, 0.9621});
+    TemperaturePalette_.addSupportPoint(0.175, {0.9337, 0.915, 1.0});
+    TemperaturePalette_.addSupportPoint(0.2, {0.7874, 0.8187, 1.0});
+    TemperaturePalette_.addSupportPoint(0.3, {0.5431, 0.6389, 1.0});
+    TemperaturePalette_.addSupportPoint(0.4, {0.4599, 0.5696, 1.0});
+    TemperaturePalette_.addSupportPoint(0.5, {0.4196, 0.5339, 1.0});
+    TemperaturePalette_.addSupportPoint(0.6, {0.3961, 0.5123, 1.0});
+    TemperaturePalette_.addSupportPoint(0.7, {0.3809, 0.4981, 1.0});
+    TemperaturePalette_.addSupportPoint(0.8, {0.3702, 0.4879, 1.0});
+    TemperaturePalette_.addSupportPoint(0.9, {0.3624, 0.4804, 1.0});
     TemperaturePalette_.buildLuT();
 
     //--- FBOs ---//
@@ -480,6 +491,16 @@ void RenderSystem::blurSceneSSAA()
                   int(RenderResFactor_+0.5)/2, 1.0);
 }
 
+void RenderSystem::checkGalaxyTextureSizes()
+{
+    for (auto i=0; i<GALAXY_SUB_WEIGHTS.size(); ++i)
+    if (TextureSizeSubMax_ < GALAXY_SUB_LEVEL[i]*WindowSizeX_)
+    {
+        Reg_.ctx<MessageHandler>().report("gfx", "Galaxy subsampling texture resolution too high, reducing.", MessageHandler::WARNING);
+        GALAXY_SUB_LEVEL[i] = double(TextureSizeSubMax_)/WindowSizeX_;
+    }
+}
+
 void RenderSystem::clampZoom()
 {
     auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
@@ -579,11 +600,12 @@ void RenderSystem::renderGalaxy(double _Scale, bool _IsRenderResFactorConsidered
             auto r = _r.r;
             r *= Zoom.z * StarsDisplayScaleFactor_;
             double RenderScale = 1.0;
-            if (RenderResFactor_ < 1.0) RenderScale = 1.0/RenderResFactor_;
+            // if (RenderResFactor_ < 1.0) RenderScale = 1.0/RenderResFactor_;
             if (r < StarsDisplaySizeMin_*RenderScale)
             {
                 r=StarsDisplaySizeMin_*RenderScale;
             }
+            if (r<1.5) r=1.5;
             r *= _Scale;
 
             Shader_.setTransformationProjectionMatrix(
@@ -595,7 +617,7 @@ void RenderSystem::renderGalaxy(double _Scale, bool _IsRenderResFactorConsidered
             auto* s = Reg_.try_get<StarDataComponent>(_e);
             if (s != nullptr)
             {
-                Shader_.setColor(TemperaturePalette_.getColorClip((s->Temperature-2000.0)/45000.0));
+                Shader_.setColor(TemperaturePalette_.getColorClip((s->Temperature)/40000.0));
             }
             else
             {

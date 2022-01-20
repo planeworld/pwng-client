@@ -54,26 +54,26 @@ class RenderSystem
         static constexpr double TEXTURE_DECIMALS_MAX = std::log10(TEXTURE_SIZE_MAX);
         static constexpr int GALAXY_ZOOM_DECIMALS_MAX = int(7.225-TEXTURE_DECIMALS_MAX);
         static constexpr double GALAXY_ZOOM_MAX = ZoomComponent::CAMERA_ZOOM_DEFAULT * std::pow(10.0, GALAXY_ZOOM_DECIMALS_MAX);
-        static constexpr int GALAXY_SUB_N{5};
-        static constexpr std::array<double, GALAXY_SUB_N> GALAXY_SUB_LEVEL
+        static constexpr int GALAXY_SUB_N{4};
+        std::array<double, GALAXY_SUB_N> GALAXY_SUB_LEVEL
         {
              1.0/4.0,
              1.0/8.0,
              1.0/16.0,
              1.0/32.0,
-             1.0/64.0,
+             // 1.0/64.0,
         };
         static constexpr std::array<double, GALAXY_SUB_N-1> GALAXY_SUB_WEIGHTS
             {0.75,
              0.75,
-             0.75,
-             0.75};
+             0.85};
 
         void blur5x5(GL::Framebuffer* _FboFront, GL::Framebuffer* _FboBack,
                      GL::Texture2D* _TexFront, GL::Texture2D* _TexBack,
                      int _Sx, int _Sy,
                      int _n, double _f);
         void blurSceneSSAA();
+        void checkGalaxyTextureSizes();
         void clampZoom();
         void createFBOandTex(GL::Framebuffer* const _Fbo, GL::Texture2D* const _Tex, int _SizeX, int _SizeY);
         void renderGalaxy(double _Scale, bool _IsRenderResFactorConsidered = false);
