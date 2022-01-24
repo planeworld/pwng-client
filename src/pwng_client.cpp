@@ -435,7 +435,6 @@ void PwngClient::updateUI()
                     Network.quit();
                     Platform::Application::Sdl2Application::exit();
                 }
-                UI.processVerbosity();
 
                 static float RenderResolutionFactor = 2.0f;
                 if (ImGui::SliderFloat("Render resolution factor", &RenderResolutionFactor, 0.1f, 4.0f))
@@ -468,6 +467,7 @@ void PwngClient::updateUI()
             ImGui::Unindent();
             UI.processObjectLabels();
         ImGui::End();
+        DBLK(UI.processDebug();)
         UI.displayObjectLabels(Camera);
         UI.displayHelp();
         UI.displayScaleAndTime(Renderer.getScale(), Renderer.getScaleUnit(), SimTime_);

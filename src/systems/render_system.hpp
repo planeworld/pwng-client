@@ -49,6 +49,8 @@ class RenderSystem
         void setupGraphics();
         void setWindowSize(const double _x, const double _y);
 
+        DBLK(bool IsGalaxySubLevelsDisplayed{false};)
+
     private:
 
         static constexpr double TEXTURE_DECIMALS_MAX = std::log10(TEXTURE_SIZE_MAX);
@@ -63,8 +65,9 @@ class RenderSystem
              1.0/32.0,
              // 1.0/64.0,
         };
-        static constexpr std::array<double, GALAXY_SUB_N-1> GALAXY_SUB_WEIGHTS
-            {0.75,
+        static constexpr std::array<double, GALAXY_SUB_N> GALAXY_SUB_WEIGHTS
+            {0.25,
+             0.75,
              0.75,
              0.85};
 

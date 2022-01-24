@@ -11,6 +11,7 @@
 #include <Magnum/ImGuiIntegration/Context.hpp>
 
 #include "components.hpp"
+#include "message_handler.hpp"
 #include "performance_timers.hpp"
 #include "scale_unit.hpp"
 #include "sim_timer.hpp"
@@ -44,7 +45,8 @@ class UIManager
         void processServerControl(double _CurrentAcceleration);
         void processSubscriptions();
         void processStarSystems();
-        void processVerbosity();
+
+        DBLK(void processDebug(); )
 
 
     private:
