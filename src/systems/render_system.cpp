@@ -136,12 +136,10 @@ void RenderSystem::renderScene()
     this->subSampleGalaxy();
     this->blurSceneSSAA();
 
-    double Weight = 0.7;
-
-    if (Reg_.get<ZoomComponent>(Camera_).z >= 1.0e-13)
-    {
-        Weight = 0.75 * (1.0 - (Reg_.get<ZoomComponent>(Camera_).z - 1.0e-13));
-    }
+    // if (Reg_.get<ZoomComponent>(Camera_).z >= 1.0e-13)
+    // {
+    //     Weight = 0.75 * (1.0 - (Reg_.get<ZoomComponent>(Camera_).z - 1.0e-13));
+    // }
 
     std::swap(FBOMainDisplayFront_, FBOMainDisplayBack_);
     std::swap(TexMainDisplayFront_, TexMainDisplayBack_);
@@ -153,7 +151,7 @@ void RenderSystem::renderScene()
                       .setTexScale((RenderResFactor_*WindowSizeX_)/TextureSizeMax_,
                                    (RenderResFactor_*WindowSizeY_)/TextureSizeMax_)
                       .setSigma(GALAXY_SUB_LEVEL[0]*TextureSizeMax_/(TextureSizeSubMax_*RenderResFactor_))
-                      .setWeight(Weight)
+                      .setWeight(GALAXY_SUB_WEIGHTS[0])
                       .draw(MeshWeightedAvg_);
 
     GL::Renderer::setScissor({{0, 0}, {WindowSizeX_, WindowSizeY_}});
@@ -167,6 +165,7 @@ void RenderSystem::renderScene()
                                    (RenderResFactor_*WindowSizeY_)/TextureSizeMax_)
                       .draw(MeshMainDisplay_);
 
+    DBLK(if (IsGalaxySubLevelsDisplayed) {
     for (auto i=0; i<GALAXY_SUB_N; ++i)
     {
         GL::defaultFramebuffer.setViewport({{i*int(WindowSizeX_*1.0/GALAXY_SUB_N), 0},
@@ -176,7 +175,7 @@ void RenderSystem::renderScene()
                           .setTexScale(double(WindowSizeX_)/TextureSizeSubMax_*GALAXY_SUB_LEVEL[i],
                                        double(WindowSizeY_)/TextureSizeSubMax_*GALAXY_SUB_LEVEL[i])
                           .draw(MeshMainDisplay_);
-    }
+    }})
     // GL::defaultFramebuffer.setViewport({{0, int(WindowSizeY_*1.0/GALAXY_SUB_N)},
     //                                    {int(WindowSizeX_*1.0/GALAXY_SUB_N), 2*int(WindowSizeY_*1.0/GALAXY_SUB_N)}});
 
@@ -493,7 +492,8 @@ void RenderSystem::blurSceneSSAA()
 
 void RenderSystem::checkGalaxyTextureSizes()
 {
-    for (auto i=0; i<GALAXY_SUB_WEIGHTS.size(); ++i)
+    // Only check the sub levels, main screen texture size is large enough
+    for (auto i=1; i<GALAXY_SUB_WEIGHTS.size(); ++i)
     if (TextureSizeSubMax_ < GALAXY_SUB_LEVEL[i]*WindowSizeX_)
     {
         Reg_.ctx<MessageHandler>().report("gfx", "Galaxy subsampling texture resolution too high, reducing.", MessageHandler::WARNING);
@@ -657,7 +657,7 @@ void RenderSystem::subSampleGalaxy()
                       .setTexScale(double(WindowSizeX_)/TextureSizeSubMax_*GALAXY_SUB_LEVEL[GALAXY_SUB_N-2],
                                    double(WindowSizeY_)/TextureSizeSubMax_*GALAXY_SUB_LEVEL[GALAXY_SUB_N-2])
                       .setSigma(GALAXY_SUB_LEVEL[GALAXY_SUB_N-1]/GALAXY_SUB_LEVEL[GALAXY_SUB_N-2])
-                      .setWeight(GALAXY_SUB_WEIGHTS[GALAXY_SUB_N-2])
+                      .setWeight(GALAXY_SUB_WEIGHTS[GALAXY_SUB_N-1])
                       .draw(MeshWeightedAvg_);
 
     std::swap(FBOGalaxyLevelCombinerFront_, FBOGalaxyLevelCombinerBack_);
@@ -674,7 +674,7 @@ void RenderSystem::subSampleGalaxy()
                           .setTexScale(double(WindowSizeX_)/TextureSizeSubMax_*GALAXY_SUB_LEVEL[i-1],
                                        double(WindowSizeY_)/TextureSizeSubMax_*GALAXY_SUB_LEVEL[i-1])
                           .setSigma(GALAXY_SUB_LEVEL[i]/GALAXY_SUB_LEVEL[i-1])
-                          .setWeight(GALAXY_SUB_WEIGHTS[i-1])
+                          .setWeight(GALAXY_SUB_WEIGHTS[i])
                           .draw(MeshWeightedAvg_);
 
         std::swap(FBOGalaxyLevelCombinerFront_, FBOGalaxyLevelCombinerBack_);
