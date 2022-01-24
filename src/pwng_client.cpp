@@ -83,25 +83,15 @@ void PwngClient::mouseMoveEvent(MouseMoveEvent& Event)
             auto& SysPos = Reg_.get<SystemPositionComponent>(Camera);
             auto& Pos = Reg_.get<PositionComponent>(Camera);
             auto& Zoom = Reg_.get<ZoomComponent>(Camera);
-            if (Event.modifiers() & MouseMoveEvent::Modifier::Shift)
+            if (Zoom.z < 1.0e12)
             {
-                if (Zoom.z - 0.01*Event.relativePosition().y()*Zoom.z > 0.0)
-                    Zoom.z -= 0.01*Event.relativePosition().y()*Zoom.z;
-                if (Zoom.z < 1.0e-22) Zoom.z = 1.0e-22;
-                else if (Zoom.z > 100.0) Zoom.z = 100.0;
+                Pos.x -= Event.relativePosition().x() / Zoom.z;
+                Pos.y += Event.relativePosition().y() / Zoom.z;
             }
             else
             {
-                if (Zoom.z < 1.0e12)
-                {
-                    Pos.x -= Event.relativePosition().x() / Zoom.z;
-                    Pos.y += Event.relativePosition().y() / Zoom.z;
-                }
-                else
-                {
-                    SysPos.x -= Event.relativePosition().x() / Zoom.z;
-                    SysPos.y += Event.relativePosition().y() / Zoom.z;
-                }
+                SysPos.x -= Event.relativePosition().x() / Zoom.z;
+                SysPos.y += Event.relativePosition().y() / Zoom.z;
             }
         }
     }
@@ -134,6 +124,13 @@ void PwngClient::mouseScrollEvent(MouseScrollEvent& Event)
         Zoom.t = Zoom.z * ZoomSpeed;
         Zoom.i = (Zoom.t - Zoom.z) / Zoom.s;
         Zoom.c = 0;
+        DBLK(
+            // Use stringstream instead of to_string because of precision/scientific format
+            // E.g. to_string shows 0.000000 for 1e-20
+            std::ostringstream oss;
+            oss << "Zoom: " << Zoom.z;
+            Reg_.ctx<MessageHandler>().report("prg", oss.str(), MessageHandler::DEBUG_L2);
+            )
     }
 }
 

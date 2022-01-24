@@ -40,6 +40,7 @@ class MainDisplayShader : public GL::AbstractShaderProgram
 
             setUniform(uniformLocation("u_texture"), TextureUnit);
             setUniform(TexScaleUniformX_, 1.0f);
+            setUniform(TexScaleUniformY_, 1.0f);
         }
 
         MainDisplayShader& setTexScale(const float TexScaleX, const float TexScaleY)
