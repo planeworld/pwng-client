@@ -77,6 +77,7 @@ class UIManager
         bool LabelsStarData_{false};
         bool LabelsVelocity_{false};
         bool ShowHelp_{false};
+        DBLK(bool ShowDebug_{false};)
 };
 
 #endif // UI_MANAGER_HPP
