@@ -196,7 +196,7 @@ void PwngClient::getObjectsFromQueue()
                 int        SC = j["params"]["sc"].GetInt();
                 double      t = j["params"]["t"].GetDouble();
 
-                entt::id_type Id = j["params"]["eid"].GetInt();
+                entt::id_type Id = j["params"]["eid"].GetUint();
 
                 auto ci = Id2EntityMap_.find(Id);
                 if (ci != Id2EntityMap_.end())
@@ -226,7 +226,7 @@ void PwngClient::getObjectsFromQueue()
             else if (j["method"] == "galaxy_data_systems")
             {
                 std::string n = j["params"]["name"].GetString();
-                entt::id_type Id = j["params"]["eid"].GetInt();
+                entt::id_type Id = j["params"]["eid"].GetUint();
 
                 auto ci = Id2EntityMap_.find(Id);
                 if (ci != Id2EntityMap_.end())
@@ -257,7 +257,7 @@ void PwngClient::getObjectsFromQueue()
                 double     py = j["params"]["py"].GetDouble();
                 double      r = j["params"]["r"].GetDouble();
 
-                entt::id_type Id = j["params"]["eid"].GetInt();
+                entt::id_type Id = j["params"]["eid"].GetUint();
 
                 auto ci = Id2EntityMap_.find(Id);
                 if (ci != Id2EntityMap_.end())
@@ -303,7 +303,7 @@ void PwngClient::getObjectsFromQueue()
                 double RimY = j["params"]["rim_xy"][1].GetDouble();
                 double RimR = j["params"]["rim_r"].GetDouble();
 
-                entt::id_type Id = j["params"]["eid"].GetInt();
+                entt::id_type Id = j["params"]["eid"].GetUint();
 
                 auto ci = Id2EntityMap_.find(Id);
                 if (ci != Id2EntityMap_.end())
@@ -350,6 +350,7 @@ void PwngClient::getObjectsFromQueue()
         if (NewHooks)
         {
             UI.finishSystemsTransfer();
+            NewHooks = false;
         }
     }
     Timers_.Queue.stop();
