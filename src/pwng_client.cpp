@@ -34,6 +34,9 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::GlfwApplication{ar
 
     auto& Messages = Reg_.ctx<MessageHandler>();
 
+    Messages.setColored(true);
+    Messages.setLevel(MessageHandler::DEBUG_L2);
+
     Messages.registerSource("col", "col");
     Messages.registerSource("jsn", "jsn");
     Messages.registerSource("net", "net");
@@ -47,13 +50,26 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::GlfwApplication{ar
     Reg_.ctx<RenderSystem>().setupGraphics();
     setSwapInterval(1);
     // setMinimalLoopPeriod(1.0f/60.0f * 1000.0f);
+
 }
 
 void PwngClient::drawEvent()
 {
     auto& Renderer = Reg_.ctx<RenderSystem>();
+    auto& Network = Reg_.ctx<NetworkManager>();
+    auto& UI = Reg_.ctx<UIManager>();
 
     this->getObjectsFromQueue();
+
+    if (IsDisconnectEventTriggered_)
+    {
+        Renderer.cleanupScene();
+        Renderer.resetCamera();
+        UI.cleanupHooks();
+        this->cleanupScene();
+
+        IsDisconnectEventTriggered_.store(false);
+    }
     Renderer.renderScene();
     Renderer.renderScale();
 
@@ -160,6 +176,21 @@ void PwngClient::viewportEvent(ViewportEvent& Event)
     ImGUI_.relayout(Vector2(Event.windowSize()), Event.windowSize(), Event.framebufferSize());
 }
 
+void PwngClient::cleanupScene()
+{
+    auto& Messages = Reg_.ctx<MessageHandler>();
+
+    Id2EntityMap_.clear();
+    auto v_1 = Reg_.view<NameComponent>();
+    auto v_2 = Reg_.view<TireComponent>();
+    Reg_.destroy(v_1.begin(), v_1.end());
+    Reg_.destroy(v_2.begin(), v_2.end());
+
+    DBLK(Messages.report("prg", "Registry size after disconnect (cleanup): " +
+                         std::to_string(Reg_.alive()) +
+                         " of " + std::to_string(Reg_.size()), MessageHandler::DEBUG_L1);)
+}
+
 void PwngClient::getObjectsFromQueue()
 {
     Timers_.Queue.start();
@@ -196,7 +227,7 @@ void PwngClient::getObjectsFromQueue()
                 int        SC = j["params"]["sc"].GetInt();
                 double      t = j["params"]["t"].GetDouble();
 
-                entt::id_type Id = j["params"]["eid"].GetInt();
+                entt::id_type Id = j["params"]["eid"].GetUint();
 
                 auto ci = Id2EntityMap_.find(Id);
                 if (ci != Id2EntityMap_.end())
@@ -226,7 +257,7 @@ void PwngClient::getObjectsFromQueue()
             else if (j["method"] == "galaxy_data_systems")
             {
                 std::string n = j["params"]["name"].GetString();
-                entt::id_type Id = j["params"]["eid"].GetInt();
+                entt::id_type Id = j["params"]["eid"].GetUint();
 
                 auto ci = Id2EntityMap_.find(Id);
                 if (ci != Id2EntityMap_.end())
@@ -257,7 +288,7 @@ void PwngClient::getObjectsFromQueue()
                 double     py = j["params"]["py"].GetDouble();
                 double      r = j["params"]["r"].GetDouble();
 
-                entt::id_type Id = j["params"]["eid"].GetInt();
+                entt::id_type Id = j["params"]["eid"].GetUint();
 
                 auto ci = Id2EntityMap_.find(Id);
                 if (ci != Id2EntityMap_.end())
@@ -303,7 +334,7 @@ void PwngClient::getObjectsFromQueue()
                 double RimY = j["params"]["rim_xy"][1].GetDouble();
                 double RimR = j["params"]["rim_r"].GetDouble();
 
-                entt::id_type Id = j["params"]["eid"].GetInt();
+                entt::id_type Id = j["params"]["eid"].GetUint();
 
                 auto ci = Id2EntityMap_.find(Id);
                 if (ci != Id2EntityMap_.end())
@@ -350,6 +381,7 @@ void PwngClient::getObjectsFromQueue()
         if (NewHooks)
         {
             UI.finishSystemsTransfer();
+            NewHooks = false;
         }
     }
     Timers_.Queue.stop();
@@ -361,10 +393,8 @@ void PwngClient::setupNetwork()
     auto& Messages = Reg_.ctx<MessageHandler>();
     auto& Network = Reg_.ctx<NetworkManager>();
 
-    Messages.setColored(true);
-    Messages.setLevel(MessageHandler::DEBUG_L3);
-
     Network.init(&InputQueue_, &OutputQueue_);
+    Network.addListenerDisconnect([this](){IsDisconnectEventTriggered_.store(true);});
 }
 
 void PwngClient::setupWindow()

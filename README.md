@@ -4,8 +4,10 @@ pwng-client is a default client for displaying information from a galaxy-down-to
 
 See **[pwng-server](https://github.com/planeworld/pwng-server)** for detailed documentation about Planeworld NG.
 
-![build](https://github.com/planeworld/pwng-client/actions/workflows/ci.yml/badge.svg)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/8d8325f947844b9f86d0947d28b6692f)](https://www.codacy.com/gh/planeworld/pwng-client/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=planeworld/pwng-client&amp;utm_campaign=Badge_Grade)
+| branch | build | quality |
+|-|-|-|
+| master | ![build](https://github.com/planeworld/pwng-client/actions/workflows/ci.yml/badge.svg?branch=master) | ![Codacy Badge](https://app.codacy.com/project/badge/Grade/8d8325f947844b9f86d0947d28b6692f?branch=master) |
+| glfw   | ![build](https://github.com/planeworld/pwng-client/actions/workflows/ci.yml/badge.svg?branch=glfw) | |
 
 Since the default desktop client shows a lot of the underlying server simulation, all information can be found there: [pwng-server](https://github.com/planeworld/pwng-server). A teaser can be seen in the following Figure 1:
 

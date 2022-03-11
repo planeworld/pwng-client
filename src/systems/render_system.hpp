@@ -42,8 +42,10 @@ class RenderSystem
         ScaleUnitE getScaleUnit() const {return ScaleUnit_;}
 
         void buildGalaxyMesh();
+        void cleanupScene();
         void renderScale();
         void renderScene();
+        void resetCamera();
         void setRenderResFactor(const double _f) {RenderResFactorTarget_ = _f; this->updateRenderResFactor();}
         void setupCamera();
         void setupGraphics();
@@ -62,14 +64,13 @@ class RenderSystem
              1.0/4.0,
              1.0/8.0,
              1.0/16.0,
-             1.0/32.0,
+             // 1.0/32.0,
              // 1.0/64.0,
         };
         static constexpr std::array<double, GALAXY_SUB_N> GALAXY_SUB_WEIGHTS
-            {0.25,
-             0.75,
-             0.75,
-             0.85};
+            {0.2,
+             0.5,
+             0.5};
 
         void blur5x5(GL::Framebuffer* _FboFront, GL::Framebuffer* _FboBack,
                      GL::Texture2D* _TexFront, GL::Texture2D* _TexBack,
@@ -96,7 +97,7 @@ class RenderSystem
 
         int GalaxyBlurIterations_{5};
 
-        bool IsSetup{false};
+        bool IsGalaxySetup_{false};
 
         GL::Mesh MeshGalaxy_{NoCreate};
         std::vector<GL::Mesh> CircleShapes_;
@@ -154,6 +155,7 @@ class RenderSystem
 
         // --- Graphics - Camera ---//
         entt::entity Camera_;
+        entt::entity HookDummyObject_;
 
         double StarsDisplaySizeMin_{1.0};
         double StarsDisplayScaleFactor_{1.0};

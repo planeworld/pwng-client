@@ -32,6 +32,15 @@ class UIManager
 
         void addCamHook(entt::entity _e, const std::string& _n);
         void addSystem(entt::entity _e, const std::string& _n);
+        void cleanupHooks()
+        {
+            CamHooks_.clear();
+            NamesSubSystemsSet_.clear();
+            NamesUnsubSystemsSet_.clear();
+            NamesCamHooks_.clear();
+            NamesSubSystems_.clear();
+            NamesUnsubSystems_.clear();
+        }
         void displayHelp();
         void displayObjectLabels(entt::entity _Cam);
         void displayPerformance(PerformanceTimers& _Timers);
@@ -77,6 +86,7 @@ class UIManager
         bool LabelsStarData_{false};
         bool LabelsVelocity_{false};
         bool ShowHelp_{false};
+        DBLK(bool ShowDebug_{false};)
 };
 
 #endif // UI_MANAGER_HPP

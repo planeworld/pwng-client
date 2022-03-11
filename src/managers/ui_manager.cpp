@@ -230,7 +230,12 @@ void UIManager::processConnections()
 
     if (Network.isConnected())
     {
-        if (ImGui::Button("Disconnect")) Network.disconnect();
+        if (ImGui::Button("Disconnect"))
+        {
+            Network.disconnect();
+            auto v = Reg_.view<StarDataComponent>();
+            Reg_.destroy(v.begin(), v.end());
+        }
     }
     else
     {
@@ -243,7 +248,7 @@ void UIManager::processConnections()
 void UIManager::processHelp()
 {
     if (ImGui::Button("Help")) ShowHelp_ ^= true;
-
+    DBLK(if (ImGui::Button("Debug")) ShowDebug_ ^= true;)
 }
 
 void UIManager::processObjectLabels()
@@ -401,22 +406,25 @@ void UIManager::processStarSystems()
 DBLK(
     void UIManager::processDebug()
     {
-        auto& Messages = Reg_.ctx<MessageHandler>();
-        ImGui::Begin("Debug");
-            ImGui::TextColored(ImVec4(1, 1, 0, 1), "Graphics");
-            ImGui::Indent();
-                ImGui::Checkbox("Galaxy Sub Levels", &Reg_.ctx<RenderSystem>().IsGalaxySubLevelsDisplayed);
-            ImGui::Unindent();
-            static int DebugLevel = 4;
-            ImGui::TextColored(ImVec4(1, 1, 0, 1), "Logging");
-            ImGui::Indent();
-                ImGui::RadioButton("Info", &DebugLevel, 2);
-                ImGui::RadioButton("Debug Level 1", &DebugLevel, 3);
-                ImGui::RadioButton("Debug Level 2", &DebugLevel, 4);
-                ImGui::RadioButton("Debug Level 3", &DebugLevel, 5);
-            ImGui::Unindent();
-            Messages.setLevel(MessageHandler::ReportLevelType(DebugLevel));
-        ImGui::End();
+        if (ShowDebug_)
+        {
+            auto& Messages = Reg_.ctx<MessageHandler>();
+            ImGui::Begin("Debug");
+                ImGui::TextColored(ImVec4(1, 1, 0, 1), "Graphics");
+                ImGui::Indent();
+                    ImGui::Checkbox("Galaxy Sub Levels", &Reg_.ctx<RenderSystem>().IsGalaxySubLevelsDisplayed);
+                ImGui::Unindent();
+                static int DebugLevel = 4;
+                ImGui::TextColored(ImVec4(1, 1, 0, 1), "Logging");
+                ImGui::Indent();
+                    ImGui::RadioButton("Info", &DebugLevel, 2);
+                    ImGui::RadioButton("Debug Level 1", &DebugLevel, 3);
+                    ImGui::RadioButton("Debug Level 2", &DebugLevel, 4);
+                    ImGui::RadioButton("Debug Level 3", &DebugLevel, 5);
+                ImGui::Unindent();
+                Messages.setLevel(MessageHandler::ReportLevelType(DebugLevel));
+                ImGui::End();
+        }
     }
 )
 
