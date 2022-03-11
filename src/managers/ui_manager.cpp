@@ -230,7 +230,12 @@ void UIManager::processConnections()
 
     if (Network.isConnected())
     {
-        if (ImGui::Button("Disconnect")) Network.disconnect();
+        if (ImGui::Button("Disconnect"))
+        {
+            Network.disconnect();
+            auto v = Reg_.view<StarDataComponent>();
+            Reg_.destroy(v.begin(), v.end());
+        }
     }
     else
     {

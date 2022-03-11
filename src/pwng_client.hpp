@@ -38,6 +38,7 @@ class PwngClient : public Magnum::Platform::Application
         void textInputEvent(TextInputEvent& Event) override;
         void viewportEvent(ViewportEvent& Event) override;
 
+        void cleanupScene();
         void getObjectsFromQueue();
         void setupNetwork();
         void setupWindow();
@@ -47,6 +48,8 @@ class PwngClient : public Magnum::Platform::Application
         SimTimer SimTime_;
 
         bool IsGalaxyTransmitted_{false};
+
+        std::atomic_bool IsDisconnectEventTriggered_{false};
 
         //--- Graphics ---//
         std::unordered_map<std::uint32_t, entt::entity> Id2EntityMap_;

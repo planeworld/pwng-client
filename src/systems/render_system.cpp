@@ -34,15 +34,22 @@ void RenderSystem::buildGalaxyMesh()
         Pos.push_back(_p.y);
 
         auto Pal = TemperaturePalette_.getColorClip((_s.Temperature)/40000.0);
-        for (auto i=0u; i<3u; ++i) Pos.push_back(Pal[i]);
+        for (auto i=0u; i<3u; ++i) Pos.push_back(Pal[i] * (_s.Temperature/40000.0 + 0.5));
+        Pos.push_back(0.8f);
     });
 
     Buffer.setData(Pos, GL::BufferUsage::StaticDraw);
-    MeshGalaxy_.setCount(Pos.size()/5)
+    MeshGalaxy_.setCount(Pos.size()/6)
                .setPrimitive(GL::MeshPrimitive::Points)
-               .addVertexBuffer(std::move(Buffer), 0, Shaders::VertexColor2D::Position{}, Shaders::VertexColor2D::Color3{});
+               .addVertexBuffer(std::move(Buffer), 0, Shaders::VertexColor2D::Position{}, Shaders::VertexColor2D::Color4{});
 
-    IsSetup = true;
+    IsGalaxySetup_ = true;
+}
+
+void RenderSystem::cleanupScene()
+{
+    MeshGalaxy_.release();
+    IsGalaxySetup_ = false;
 }
 
 void RenderSystem::renderScale()
@@ -123,11 +130,15 @@ void RenderSystem::renderScene()
     //
     GL::Renderer::setScissor({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}});
 
-    FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 1.0f))
+    FBOMainDisplayFront_->clearColor(0, Color4(0.0f, 0.0f, 0.0f, 0.0f))
                          .setViewport({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}})
                          .bind();
 
     this->clampZoom();
+
+    if (IsGalaxySetup_)
+    {
+
     this->testViewportGalaxy();
 
     Timers_.Render.start();
@@ -155,6 +166,7 @@ void RenderSystem::renderScene()
                       .draw(MeshWeightedAvg_);
 
     GL::Renderer::setScissor({{0, 0}, {WindowSizeX_, WindowSizeY_}});
+    }
 
     GL::defaultFramebuffer.clearColor(Color4(0.0f, 0.0f, 0.0f, 1.0f))
                           .setViewport({{}, {WindowSizeX_, WindowSizeY_}})
@@ -286,12 +298,18 @@ void RenderSystem::renderScene()
     // );
 
 }
+void RenderSystem::resetCamera()
+{
+    auto& Hook = Reg_.get<HookComponent>(Camera_);
+    Hook.e = HookDummyObject_;
+}
 
 void RenderSystem::setupCamera()
 {
     Camera_ = Reg_.create();
     auto& HookDummy = Reg_.emplace<HookDummyComponent>(Camera_);
-    HookDummy.e = Reg_.create();
+    HookDummyObject_ = Reg_.create();
+    HookDummy.e = HookDummyObject_;
     Reg_.emplace<PositionComponent>(HookDummy.e);
     Reg_.emplace<SystemPositionComponent>(HookDummy.e);
 
@@ -433,6 +451,7 @@ void RenderSystem::setupGraphics()
     ShaderWeightedAvg_.bindTextures(*TexsGalaxySubFront_[0], *TexsGalaxySubFront_[1])
                       .setSigma(GALAXY_SUB_LEVEL[1]);
 
+    GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add,GL::Renderer::BlendEquation::Add);
     GL::Renderer::setScissor({{0, 0}, {int(WindowSizeX_*RenderResFactor_), int(WindowSizeY_*RenderResFactor_)}});
 }
 
@@ -543,7 +562,11 @@ void RenderSystem::renderGalaxy(double _Scale, bool _IsRenderResFactorConsidered
     auto& CamPos = Reg_.get<PositionComponent>(Camera_);
     auto& Zoom = Reg_.get<ZoomComponent>(Camera_);
 
-    if (IsSetup && Zoom.z < GALAXY_ZOOM_MAX)
+    GL::Renderer::setBlendFunction(
+    GL::Renderer::BlendFunction::SourceAlpha , /* or SourceAlpha for non-premultiplied */
+    GL::Renderer::BlendFunction::DestinationAlpha);
+
+    if (IsGalaxySetup_ && Zoom.z < GALAXY_ZOOM_MAX)
     {
         auto x = CamPosSys.x-HookPosSys.x;
         auto y = CamPosSys.y-HookPosSys.y;
@@ -556,9 +579,9 @@ void RenderSystem::renderGalaxy(double _Scale, bool _IsRenderResFactorConsidered
         }
 
         if (_IsRenderResFactorConsidered)
-            glPointSize(RenderResFactor_*1.5);
+            glPointSize(RenderResFactor_*2.5);
         else
-            glPointSize(1.5);
+            glPointSize(2.5);
         ShaderGalaxy_.setTransformationProjectionMatrix(
             ProjectionScene_ *
             Matrix3::translation(Vector2(x*Zoom.z, y*Zoom.z)) *
@@ -632,6 +655,10 @@ void RenderSystem::renderGalaxy(double _Scale, bool _IsRenderResFactorConsidered
         }
         );
     }
+    GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add,GL::Renderer::BlendEquation::Add);
+    GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha,
+    GL::Renderer::BlendFunction::OneMinusSourceAlpha);
+
 }
 
 void RenderSystem::subSampleGalaxy()

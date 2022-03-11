@@ -104,6 +104,8 @@ void NetworkManager::onClose(websocketpp::connection_hdl _Connection)
     auto& Messages = Reg_.ctx<MessageHandler>();
     Messages.report("net", "Connection closed", MessageHandler::INFO);
 
+    for (auto l : ListenersDisconnect) l();
+
     IsConnected_.store(false);
 }
 

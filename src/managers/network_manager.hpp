@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include <concurrentqueue/concurrentqueue.h>
 #include <entt/entity/registry.hpp>
@@ -31,6 +32,11 @@ class NetworkManager
 
         bool init(moodycamel::ConcurrentQueue<std::string>* const _InputQueue,
                   moodycamel::ConcurrentQueue<std::string>* const _OutputQueue);
+
+                void addListenerDisconnect(std::function<void(void)> f)
+                {
+                        ListenersDisconnect.push_back(f);
+                }
         bool connect(const std::string& _Uri);
         bool disconnect();
         void quit();
@@ -54,6 +60,8 @@ class NetworkManager
 
         std::uint32_t NetworkingStepSize_{10};
         AvgFilter<double> TimerNetwork_{50};
+
+        std::vector<std::function<void(void)>> ListenersDisconnect;
 
         ClientType Client_;
         websocketpp::connection_hdl Connection_;

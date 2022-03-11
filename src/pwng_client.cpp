@@ -34,6 +34,9 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
 
     auto& Messages = Reg_.ctx<MessageHandler>();
 
+    Messages.setColored(true);
+    Messages.setLevel(MessageHandler::DEBUG_L2);
+
     Messages.registerSource("col", "col");
     Messages.registerSource("jsn", "jsn");
     Messages.registerSource("net", "net");
@@ -47,13 +50,26 @@ PwngClient::PwngClient(const Arguments& arguments): Platform::Application{argume
     Reg_.ctx<RenderSystem>().setupGraphics();
     setSwapInterval(1);
     setMinimalLoopPeriod(1.0f/60.0f * 1000.0f);
+
 }
 
 void PwngClient::drawEvent()
 {
     auto& Renderer = Reg_.ctx<RenderSystem>();
+    auto& Network = Reg_.ctx<NetworkManager>();
+    auto& UI = Reg_.ctx<UIManager>();
 
     this->getObjectsFromQueue();
+
+    if (IsDisconnectEventTriggered_)
+    {
+        Renderer.cleanupScene();
+        Renderer.resetCamera();
+        UI.cleanupHooks();
+        this->cleanupScene();
+
+        IsDisconnectEventTriggered_.store(false);
+    }
     Renderer.renderScene();
     Renderer.renderScale();
 
@@ -158,6 +174,21 @@ void PwngClient::viewportEvent(ViewportEvent& Event)
     Reg_.ctx<RenderSystem>().setWindowSize(Event.windowSize().x(), Event.windowSize().y());
 
     ImGUI_.relayout(Vector2(Event.windowSize()), Event.windowSize(), Event.framebufferSize());
+}
+
+void PwngClient::cleanupScene()
+{
+    auto& Messages = Reg_.ctx<MessageHandler>();
+
+    Id2EntityMap_.clear();
+    auto v_1 = Reg_.view<NameComponent>();
+    auto v_2 = Reg_.view<TireComponent>();
+    Reg_.destroy(v_1.begin(), v_1.end());
+    Reg_.destroy(v_2.begin(), v_2.end());
+
+    DBLK(Messages.report("prg", "Registry size after disconnect (cleanup): " +
+                         std::to_string(Reg_.alive()) +
+                         " of " + std::to_string(Reg_.size()), MessageHandler::DEBUG_L1);)
 }
 
 void PwngClient::getObjectsFromQueue()
@@ -362,10 +393,8 @@ void PwngClient::setupNetwork()
     auto& Messages = Reg_.ctx<MessageHandler>();
     auto& Network = Reg_.ctx<NetworkManager>();
 
-    Messages.setColored(true);
-    Messages.setLevel(MessageHandler::DEBUG_L3);
-
     Network.init(&InputQueue_, &OutputQueue_);
+    Network.addListenerDisconnect([this](){IsDisconnectEventTriggered_.store(true);});
 }
 
 void PwngClient::setupWindow()
